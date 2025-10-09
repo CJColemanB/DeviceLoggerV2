@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Panel</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <h2>Add Device</h2>
+    <form method="POST">
+        Device ID: <input type="text" name="device_id" required><br>
+        Device Type:
+        <select name="device_type">
+            <option value="Laptop">Laptop</option>
+            <option value="Laptop Charger">Laptop Charger</option>
+            <option value="iPad">iPad</option>
+            <option value="Headphones">Headphones</option>
+        </select><br>
+        Available: <input type="checkbox" name="available"><br>
+        <input type="submit" value="Add Device">
+    </form>
+</body>
+</html>
