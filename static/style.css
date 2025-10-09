@@ -1,0 +1,24 @@
+body {
+    background-color: white;
+    color: black;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+input, select {
+    margin: 5px 0;
+    padding: 5px;
+    border: 1px solid gray;
+}
+a {
+    display: block;
+    margin: 10px 0;
+}
+h1, h2 {
+    border-bottom: 1px solid gray;
+}
+.green {
+    color: green;
+}
+.red {
+    color: red;
+}
