@@ -1,0 +1,15 @@
+body {
+    background-color: #f8f9fa;
+    font-family: Arial, sans-serif;
+}
+h2 {
+    color: #333;
+}
+.btn-primary { background-color: #007bff; border: none; }
+.btn-danger { background-color: #dc3545; }
+.btn-success { background-color: #28a745; }
+.btn-warning { background-color: #ffc107; }
+.overdue {
+    background-color: #f8d7da !important;
+    color: #721c24;
+}
