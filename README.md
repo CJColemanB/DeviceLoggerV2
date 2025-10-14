@@ -29,6 +29,7 @@ A robust, browser-based web application for managing the loan and return of devi
 | `static/`          | Static assets (CSS, JS).                                                    |
 | &nbsp;&nbsp;├── `styles.css`   | Custom styles for UI elements.                   |
 | &nbsp;&nbsp;└── `loan.js`      | JS for device selection/filtering on loan page.  |
+| &nbsp;&nbsp;└── `admin.js`      | JS for all technical usage for admin.js that isn't handled by the app.py.  |
 
 ---
 
