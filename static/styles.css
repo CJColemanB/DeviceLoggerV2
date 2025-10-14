@@ -117,3 +117,6 @@ tr:hover:not(.selected-row) {
     background-color: #E0E0E0; /* Light gray for inactive state */
     color: #333;
 }
+.filter-btn:not(.active):hover {
+    background-color: #BDBDBD; /* Darker gray on hover */
+}

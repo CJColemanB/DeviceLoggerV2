@@ -1,9 +1,10 @@
 import secrets
 import string
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response
 import sqlite3
-from datetime import datetime
+from datetime import datetime # datetime is already imported
 import sys
+import io
 
 app = Flask(__name__)
 # Generate a strong, unique secret key for session management
@@ -84,6 +85,18 @@ def get_db_connection():
     """Opens a new database connection."""
     return sqlite3.connect(DB_FILE)
 
+# Utility function to safely format ISO time strings
+def format_dt(iso_time_str):
+    """Formats an ISO time string into date and time components."""
+    if not iso_time_str:
+        return "N/A", "N/A"
+    try:
+        dt = datetime.fromisoformat(iso_time_str)
+        return dt.strftime("%d/%m/%y"), dt.strftime("%H:%M")
+    except ValueError:
+        return "Invalid Date", "Invalid Time"
+
+
 # --- Routes ---
 
 @app.route("/")
@@ -146,8 +159,10 @@ def loan():
             
             # Check device availability just in case (though UI should prevent this)
             c.execute("SELECT available FROM devices WHERE id = ?", (device_id,))
-            if c.fetchone()[0] == 0:
-                flash("Error: Device is already on loan.", "error")
+            available_status = c.fetchone()
+            
+            if available_status is None or available_status[0] == 0:
+                flash("Error: Device is unavailable or does not exist.", "error")
                 conn.rollback()
                 conn.close()
                 return redirect(url_for("loan"))
@@ -161,7 +176,7 @@ def loan():
             
             conn.commit()
             flash(f"Device ID {device_id} loaned successfully to {name}!", "success")
-        
+            
         except sqlite3.Error as e:
             flash(f"Database Error: {e}", "error")
             conn.rollback()
@@ -208,7 +223,7 @@ def return_device():
             
             conn.commit()
             flash(f"Device ID {device_id} returned successfully!", "success")
-        
+            
         except sqlite3.Error as e:
             flash(f"Database Error: {e}", "error")
             conn.rollback()
@@ -244,14 +259,20 @@ def admin():
     c = conn.cursor()
     
     if request.method == "POST":
+        
         # --- Handle Active Device Return (NEW LOGIC) ---
         active_return_id_full = request.form.get("active_return_id")
         if active_return_id_full:
             try:
-                # 1. Split the full ID (e.g., 'SHC-LQ-001') to find the device
+                # Determine rubric and suffix parts from the full ID
                 parts = active_return_id_full.split('-')
-                if len(parts) >= 3:
-                    rubric_id = "-".join(parts[:-1]) # Reconstruct rubric part
+                if len(parts) >= 3 and parts[0] == 'SHC':
+                    # Example: SHC-LQ-001 -> rubric='SHC-LQ', suffix='001'
+                    rubric_id = "-".join(parts[:-1]) 
+                    suffix_id = parts[-1]
+                elif len(parts) == 2 and parts[0] == 'SHC':
+                    # Example: SHC-001 (for 'Other') -> rubric='SHC', suffix='001'
+                    rubric_id = parts[0]
                     suffix_id = parts[-1]
                 else:
                     raise ValueError("Invalid full device ID format.")
@@ -270,7 +291,6 @@ def admin():
                 return_time = datetime.now().isoformat()
                 
                 # 3. Find the most recent ACTIVE loan for this device and update the return time
-                # We update the loan with return_time IS NULL
                 c.execute("""
                     UPDATE loans 
                     SET return_time = ? 
@@ -331,13 +351,15 @@ def admin():
     
     else:
         # GET request: Fetch data for display
+        conn_get = get_db_connection()
+        c_get = conn_get.cursor()
         
-        # 1. Fetch all devices
-        c.execute("SELECT * FROM devices ORDER BY id DESC")
-        devices = c.fetchall()
+        # 1. Fetch all devices (RAW data: [id, rubric_id, suffix_id, category, available] for deletion forms)
+        c_get.execute("SELECT * FROM devices ORDER BY id DESC")
+        devices_raw = c_get.fetchall()
         
-        # 2. Fetch detailed loan history (all loans, including returned)
-        c.execute("""
+        # 2. Fetch detailed loan history
+        c_get.execute("""
             SELECT 
                 s.name, 
                 s.surname, 
@@ -350,36 +372,16 @@ def admin():
             JOIN devices d ON l.device_id = d.id
             ORDER BY l.loan_time DESC
         """)
-        loan_records = c.fetchall()
+        loan_records = c_get.fetchall()
         
         # Process loan records to format dates and times
         formatted_loans = []
         for name, surname, rubric_id, suffix_id, loan_time_str, return_time_str in loan_records:
             device_full_id = f"{rubric_id}-{suffix_id}"
             
-            # Format Loan Time
-            try:
-                loan_dt = datetime.fromisoformat(loan_time_str)
-                loan_date = loan_dt.strftime("%d/%m/%y")
-                loan_time = loan_dt.strftime("%H:%M")
-            except ValueError:
-                loan_date = "Invalid Date"
-                loan_time = "Invalid Time"
-            
-            # Format Return Time (or set to N/A if null)
-            return_date = "N/A"
-            return_time = "N/A"
-            status = "On Loan"
-            
-            if return_time_str:
-                try:
-                    return_dt = datetime.fromisoformat(return_time_str)
-                    return_date = return_dt.strftime("%d/%m/%y")
-                    return_time = return_dt.strftime("%H:%M")
-                    status = "Returned"
-                except ValueError:
-                    return_date = "Invalid Date"
-                    return_time = "Invalid Time"
+            loan_date, loan_time = format_dt(loan_time_str)
+            return_date, return_time = format_dt(return_time_str)
+            status = "Returned" if return_time_str else "On Loan"
 
             formatted_loans.append({
                 'student_name': f"{name} {surname}",
@@ -391,8 +393,8 @@ def admin():
                 'status': status
             })
 
-        # 3. Fetch Active Loans (New Table Data)
-        c.execute("""
+        # 3. Fetch Active Loans (for "Devices Currently On Loan" table)
+        c_get.execute("""
             SELECT 
                 d.rubric_id,
                 d.suffix_id, 
@@ -406,24 +408,125 @@ def admin():
             WHERE d.available = 0 AND l.return_time IS NULL
             ORDER BY d.category, s.surname
         """)
-        devices_on_loan_list = c.fetchall()
+        devices_on_loan_list = c_get.fetchall()
         
         # Combine rubric and suffix for display in the template
         devices_on_loan_formatted = []
         for rubric, suffix, category, name, surname, email in devices_on_loan_list:
              devices_on_loan_formatted.append([
-                f"{rubric}-{suffix}", # device_full_id [0]
-                category,             # category [1]
-                name,                 # name [2]
-                surname,              # surname [3]
-                email                 # email [4]
-            ])
+                 f"{rubric}-{suffix}", # device_full_id [0]
+                 category,             # category [1]
+                 name,                 # name [2]
+                 surname,              # surname [3]
+                 email                 # email [4]
+             ])
 
-        conn.close()
+        conn_get.close()
         return render_template("admin.html", 
-                               devices=devices, 
+                               devices=devices_raw, 
                                loans=formatted_loans,
                                devices_on_loan=devices_on_loan_formatted)
+
+@app.route("/export_admin_data")
+@login_required
+def export_admin_data():
+    conn = get_db_connection()
+    c = conn.cursor()
+    # Use StringIO to build the CSV in memory
+    output = io.StringIO()
+
+    # --- 1. DEVICES CURRENTLY ON LOAN ---
+    
+    output.write("--- Devices Currently On Loan ---\n")
+    loan_header = ["Device ID", "Category", "Student Name", "Student Email"]
+    output.write(",".join(loan_header) + "\n")
+
+    c.execute("""
+        SELECT 
+            d.rubric_id,
+            d.suffix_id, 
+            d.category,
+            s.name, 
+            s.surname, 
+            s.email
+        FROM devices d
+        JOIN loans l ON d.id = l.device_id
+        JOIN students s ON l.student_id = s.id
+        WHERE d.available = 0 AND l.return_time IS NULL
+        ORDER BY d.category, s.surname
+    """)
+    devices_on_loan_list = c.fetchall()
+
+    for rubric, suffix, category, name, surname, email in devices_on_loan_list:
+        device_full_id = f"{rubric}-{suffix}"
+        # CSV format: wrap string values in quotes to handle commas
+        output.write(f'"{device_full_id}","{category}","{name} {surname}","{email}"\n')
+
+    output.write("\n\n")
+
+
+    # --- 2. ALL DEVICES (Inventory List) ---
+    
+    output.write("--- Current Device Inventory ---\n")
+    inventory_header = ["Database ID", "Rubric ID", "Suffix ID", "Category", "Status"]
+    output.write(",".join(inventory_header) + "\n")
+
+    # Fetch raw devices: [id, rubric_id, suffix_id, category, available]
+    c.execute("SELECT id, rubric_id, suffix_id, category, available FROM devices ORDER BY id DESC")
+    devices = c.fetchall()
+    
+    for d in devices:
+        status = "Loanable" if d[4] == 1 else "Loaned Out"
+        output.write(f'{d[0]},"{d[1]}","{d[2]}","{d[3]}","{status}"\n')
+
+    output.write("\n\n")
+
+
+    # --- 3. LOAN HISTORY (All Loans, including returned) ---
+
+    output.write("--- Device Loan History (All Time) ---\n")
+    history_header = ["Student Name", "Device ID", "Category", "Loan Date", "Loan Time", "Return Date", "Return Time", "Status"]
+    output.write(",".join(history_header) + "\n")
+
+    c.execute("""
+        SELECT 
+            s.name, 
+            s.surname, 
+            d.rubric_id,
+            d.suffix_id,
+            d.category,
+            l.loan_time, 
+            l.return_time
+        FROM loans l
+        JOIN students s ON l.student_id = s.id
+        JOIN devices d ON l.device_id = d.id
+        ORDER BY l.loan_time DESC
+    """)
+    loan_records = c.fetchall()
+    
+    for name, surname, rubric_id, suffix_id, category, loan_time_str, return_time_str in loan_records:
+        device_full_id = f"{rubric_id}-{suffix_id}"
+        
+        loan_date, loan_time = format_dt(loan_time_str)
+        return_date, return_time = format_dt(return_time_str)
+        status = "Returned" if return_time_str else "On Loan"
+
+        output.write(f'"{name} {surname}","{device_full_id}","{category}","{loan_date}","{loan_time}","{return_date}","{return_time}","{status}"\n')
+        
+    conn.close()
+    
+    csv_content = output.getvalue()
+    
+    # Generate dynamic filename: DeviceLoanForDDMMYYYY.csv
+    current_date_str = datetime.now().strftime("%d%m%Y")
+    filename = f"DeviceLoanFor{current_date_str}.csv"
+    
+    # Create the Flask response to trigger a file download
+    response = make_response(csv_content)
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    response.headers["Content-type"] = "text/csv"
+    
+    return response
 
 if __name__ == "__main__":
     generate_credentials()

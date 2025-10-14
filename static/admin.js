@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const rubricInput = document.getElementById('rubric_id_input');
     const suffixInput = document.getElementById('suffix_id_input');
 
-    // Mapping of category to rubric prefix
+    // Mapping of category to rubric prefix (Updated to include trailing hyphens)
     const rubricPrefixes = {
         'Laptop': 'SHC-LQ-',
         'Charger': 'SHC-LP-',
@@ -29,9 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const deleteForms = document.querySelectorAll('form[name="delete-form"]');
     deleteForms.forEach(form => {
         form.addEventListener('submit', function(event) {
+            // Find the hidden input that holds the device ID to be deleted
             const deviceId = this.querySelector('input[name="delete_id"]').value;
+            
+            // Use the native confirm dialog to ask the user before submitting
             if (!confirm(`Are you sure you want to delete device ID ${deviceId}?`)) {
-                event.preventDefault();
+                event.preventDefault(); // Stop the form submission if user clicks Cancel
             }
         });
     });
