@@ -1,5 +1,6 @@
 import secrets
 import string
+import os # Added os for file operations
 from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response
 import sqlite3
 from datetime import datetime # datetime is already imported
@@ -528,6 +529,136 @@ def export_admin_data():
     
     return response
 
+@app.route("/import_admin_data", methods=["POST"])
+@login_required
+def import_admin_data():
+    """
+    Handles the upload of an Excel backup file to overwrite the current database.
+    This is a destructive "wipe-and-replace" operation.
+    """
+    if 'backup_file' not in request.files or not request.files['backup_file'].filename:
+        flash("No file selected for import.", "error")
+        return redirect(url_for("admin"))
+
+    file = request.files['backup_file']
+
+    if not file.filename.endswith('.xlsx'):
+        flash("Invalid file type. Please upload an .xlsx Excel file.", "error")
+        return redirect(url_for("admin"))
+
+    conn = None # Ensure conn is defined to be accessible in the finally block
+    try:
+        # Read the entire Excel file into a pandas DataFrame
+        df = pd.read_excel(file, header=None)
+
+        # --- 1. Find the start and end of each data section ---
+        section_indices = {}
+        for i, row in df.iterrows():
+            if str(row[0]).startswith("---"):
+                section_name = row[0].strip("- ")
+                section_indices[section_name] = i
+
+        # --- 2. Extract DataFrames for Inventory and History ---
+        # Get Inventory Data
+        inv_start = section_indices.get("Current Device Inventory")
+        hist_start = section_indices.get("Device Loan History (All Time)")
+        
+        if inv_start is None or hist_start is None:
+            raise ValueError("Could not find required data sections in the Excel file.")
+
+        inventory_df = pd.read_excel(file, header=inv_start + 1, nrows=(hist_start - inv_start - 3))
+        history_df = pd.read_excel(file, header=hist_start + 1)
+        
+        # --- 3. Start Database Transaction to Wipe and Replace Data ---
+        conn = get_db_connection()
+        c = conn.cursor()
+
+        # Clear existing data from all tables
+        c.execute("DELETE FROM loans")
+        c.execute("DELETE FROM students")
+        c.execute("DELETE FROM devices")
+        # Reset auto-increment counters for clean IDs
+        c.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'loans'")
+        c.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'students'")
+        c.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'devices'")
+
+        # --- 4. Repopulate the 'devices' table from the inventory data ---
+        for _, row in inventory_df.iterrows():
+            status = 1 if row['Status'] == 'Loanable' else 0
+            c.execute(
+                "INSERT INTO devices (rubric_id, suffix_id, category, available) VALUES (?, ?, ?, ?)",
+                (row['Rubric ID'], row['Suffix ID'], row['Category'], status)
+            )
+
+        # --- 5. Repopulate 'students' and 'loans' tables from history data ---
+        student_email_to_id = {} # To avoid creating duplicate students
+        
+        # We need to iterate from oldest to newest to correctly determine final device status
+        for _, row in history_df.iloc[::-1].iterrows():
+            # Get or create the student
+            student_name = row['Student Name']
+            # A simple (but brittle) way to get email from another table; assuming email is not in history
+            # For a robust solution, student email should be in the export.
+            # Here, we'll just use the name as a key. A better approach would be to have a unique ID in the export.
+            
+            # This part assumes a 'Student Email' column exists in your export. If not, you may need to adjust.
+            # Let's pretend the format is "First Last (email@example.com)" or you add email to export.
+            # For this example, we will assume a simple name split.
+            name_parts = student_name.split()
+            first_name = name_parts[0] if name_parts else ''
+            last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
+            
+            # Create a placeholder email since it's required to be unique
+            student_email = f"{first_name.lower()}.{last_name.lower()}@imported.local"
+
+            if student_email not in student_email_to_id:
+                c.execute(
+                    "INSERT INTO students (name, surname, email) VALUES (?, ?, ?)",
+                    (first_name, last_name, student_email)
+                )
+                student_id = c.lastrowid
+                student_email_to_id[student_email] = student_id
+            else:
+                student_id = student_email_to_id[student_email]
+
+            # Find the corresponding device_id
+            rubric_id, suffix_id = str(row['Device ID']).rsplit('-', 1)
+            c.execute("SELECT id FROM devices WHERE rubric_id = ? AND suffix_id = ?", (rubric_id, suffix_id))
+            device_res = c.fetchone()
+            if not device_res: continue # Skip if device not found
+            device_id = device_res[0]
+
+            # Reconstruct ISO timestamps
+            loan_dt_str = f"{row['Loan Date']} {row['Loan Time']}"
+            loan_time_iso = datetime.strptime(loan_dt_str, "%d/%m/%y %H:%M").isoformat()
+            
+            return_time_iso = None
+            if pd.notna(row['Return Date']) and str(row['Return Date']) != 'N/A':
+                return_dt_str = f"{row['Return Date']} {row['Return Time']}"
+                return_time_iso = datetime.strptime(return_dt_str, "%d/%m/%y %H:%M").isoformat()
+
+            # Insert the loan record
+            c.execute(
+                "INSERT INTO loans (student_id, device_id, loan_time, return_time) VALUES (?, ?, ?, ?)",
+                (student_id, device_id, loan_time_iso, return_time_iso)
+            )
+
+        # --- 6. Commit the transaction ---
+        conn.commit()
+        flash("Database successfully imported from Excel. All previous data has been replaced.", "success")
+
+    except (pd.errors.ParserError, ValueError, sqlite3.Error, KeyError) as e:
+        flash(f"Error during Excel import: {e}. The database was not changed.", "error")
+        if conn:
+            conn.rollback() # Roll back any partial changes if an error occurred
+
+    finally:
+        if conn:
+            conn.close() # Always close the connection
+
+    return redirect(url_for("admin"))
+
+
 if __name__ == "__main__":
     generate_credentials()
     init_db()
@@ -536,3 +667,4 @@ if __name__ == "__main__":
         sys.path.append(".")
     
     app.run(debug=True)
+# Note: In production, set debug=False and consider using a production server like Gunicorn.
