@@ -114,7 +114,7 @@ devices: Stores inventory (rubric_id, suffix_id, category, available status).
 
 students: Stores borrower information (name, surname, email).
 
-loans: Links students and devices for each transaction, recording loan_time and return_time.
+loans: Links students and devices for each transaction, recording loan_time and return_time).
 
 Return Logic (Admin)
 When the Mark as Handed In button is pressed in the Admin Panel, the app.py logic handles the full device ID string, finds the corresponding device, and automatically sets the return_time on the active loan and updates the device's available status back to '1'.
