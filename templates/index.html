@@ -1,13 +1,21 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Student Device Loan</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <title>Home</title>
 </head>
 <body>
-    <h1>Welcome to the Student Device Loan System</h1>
-    <a href="/loan"><button style="background-color:green;color:white;">Loan Device</button></a>
-    <a href="/return"><button style="background-color:red;color:white;">Return Device</button></a>
-    <a href="/admin"><button>Admin Panel</button></a>
+    <h1>Welcome to the Device Loan System</h1>
+    <div class="button-container">
+    <a href="{{ url_for('loan') }}">
+        <button class="btn green">Loan Device</button>
+    </a>
+    <a href="{{ url_for('return_device') }}">
+        <button class="btn red">Return Device</button>
+    </a>
+    <a href="{{ url_for('admin') }}">
+        <button class="btn blue">Admin Panel</button>
+    </a>
+</div>
 </body>
 </html>

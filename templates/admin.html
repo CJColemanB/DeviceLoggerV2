@@ -1,15 +1,35 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Login</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <title>Admin Panel</title>
 </head>
 <body>
-    <h2>Admin Panel</h2>
-    <form method="POST">
-        Username: <input type="text" name="username"><br>
-        Password: <input type="password" name="password"><br>
-        <button type="submit">Login</button>
+    <h1>Admin Panel</h1>
+    <h2>Add Device</h2>
+    <form method="post">
+        <input name="rubric_id" placeholder="Rubric ID" required><br>
+        <input name="suffix_id" placeholder="Suffix ID" required><br>
+        <input name="category" placeholder="Category" required><br>
+        <button class="btn blue" type="submit">Add Device</button>
     </form>
+    <h2>Devices</h2>
+    <table>
+        <tr><th>ID</th><th>Rubric</th><th>Suffix</th><th>Category</th><th>Available</th><th>Action</th></tr>
+        {% for d in devices %}
+        <tr>
+            <td>{{ d[0] }}</td><td>{{ d[1] }}</td><td>{{ d[2] }}</td><td>{{ d[3] }}</td><td>{{ d[4] }}</td>
+            <td>
+                <form method="post" style="display:inline;">
+                    <input type="hidden" name="delete_id" value="{{ d[0] }}">
+                    <button class="btn red" type="submit">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    <a href="{{ url_for('index') }}">
+        <button class="btn blue">Back</button>
+    </a>
 </body>
 </html>

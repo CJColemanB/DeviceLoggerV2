@@ -1,18 +1,23 @@
-
 <!DOCTYPE html>
 <html>
 <head>
+    <link rel="stylesheet" href="/static/styles.css">
     <title>Loan Device</title>
 </head>
 <body>
-    <h2>Loan a Device</h2>
-    <form method="POST">
-        Name: <input type="text" name="name"><br>
-        Surname: <input type="text" name="surname"><br>
-        Email: <input type="email" name="email"><br>
-        Device Type: <select name="device_type" id="device_type"></select><br>
-        Available Devices: <select name="device_id" id="device_id"></select><br>
-        <button type="submit" style="background-color:green;color:white;">Loan</button>
+    <h1>Loan a Device</h1>
+    <form method="post">
+        <input name="name" placeholder="Name" required><br>
+        <input name="surname" placeholder="Surname" required><br>
+        <input name="email" placeholder="Email" required><br>
+        <select name="device" required>
+            {% for id, name in devices %}
+            <option value="{{ id }}">{{ name }}</option>
+            {% endfor %}
+        </select><br>
+        <button class="btn green" type="submit">Loan</button>
     </form>
+    <a href="{{ url_for('index') }}">
+        <button class="btn blue">Back</button>
+    </a>
 </body>
-</html>
