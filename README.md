@@ -1,0 +1,108 @@
+# 💻 Device Loan Management System
+
+A robust, browser-based web application for managing the loan and return of devices (e.g., laptops, iPads) within a school or organization. Built with **Python (Flask)** and **SQLite** for simplicity, reliability, and ease of deployment.
+
+---
+
+## ✨ Features
+
+- **Effortless Device Loans:** Quickly check out devices to students, with fields for name, surname, and email.
+- **Real-Time Inventory Status:** Instantly see which devices are available or currently loaned out.
+- **Secure Admin Panel:** Access a protected dashboard to add/remove devices, and view both active and historical loan data.
+- **Automated Timestamping:** All loans and returns are accurately recorded with date (`DD/MM/YY`) and time (`HH:MM`) stamps.
+- **One-Click Returns:** Admins can mark devices as returned directly from the active loan list.
+
+---
+
+## 📁 File Structure
+
+| File/Folder        | Description                                                                 |
+|--------------------|-----------------------------------------------------------------------------|
+| `app.py`           | Main Flask application with routing, database connections, and loan logic.   |
+| `device_loans.db`  | SQLite database file (auto-created). Stores device, student, and loan data.  |
+| `templates/`       | HTML templates for all pages.                                                |
+| &nbsp;&nbsp;├── `index.html`   | Home/landing page.                              |
+| &nbsp;&nbsp;├── `loan.html`    | Device loan form and selection.                  |
+| &nbsp;&nbsp;├── `return.html`  | Return devices (dropdown selection).             |
+| &nbsp;&nbsp;├── `login.html`   | Admin login page.                               |
+| &nbsp;&nbsp;└── `admin.html`   | Admin dashboard with inventory/history.          |
+| `static/`          | Static assets (CSS, JS).                                                    |
+| &nbsp;&nbsp;├── `styles.css`   | Custom styles for UI elements.                   |
+| &nbsp;&nbsp;└── `loan.js`      | JS for device selection/filtering on loan page.  |
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Python 3** installed on your system.
+
+### 1. Run the Application
+
+1. Ensure all files are in the same directory.
+2. Open your terminal or command prompt in that directory.
+3. Start the application:
+   ```bash
+   python app.py
+   ```
+
+### 2. Admin Access Credentials
+
+- Upon starting `app.py`, unique admin credentials (username and password) are generated and displayed in the terminal:
+  ```
+  ================================================== 
+  !!! ADMIN ACCESS CREDENTIALS !!! 
+  USERNAME: admin_xxxx 
+  PASSWORD: [a complex string] 
+  Please use these to log into the /admin panel. 
+  Credentials are valid ONLY for this session. 
+  ================================================== 
+  ```
+
+### 3. Using the Website
+
+- **Home Page (`/`):** Main navigation for Loan, Return, and Admin functions.
+- **Loan Device (`/loan`):**
+  - Fill student details (Name, Surname, Email).
+  - Filter available devices by category.
+  - Select a device and click "Loan Device".
+- **Admin Panel (`/admin`):**
+  - Log in with generated credentials.
+  - Add new devices (category, rubric, suffix).
+  - View active loans and mark devices as returned.
+  - Review full loan history with timestamps.
+
+---
+
+## 🛠️ Technical Details
+
+### Database Schema
+
+The system uses three main tables:
+
+- **devices:** Inventory (rubric_id, suffix_id, category, availability).
+- **students:** Borrower information (name, surname, email).
+- **loans:** Links students and devices per transaction; records loan and return timestamps.
+
+### Device Return Logic (Admin Panel)
+
+When "Mark as Handed In" is clicked in the Admin Panel, `app.py` processes the device ID, locates the device, and sets the `return_time` for the active loan entry. The device status is updated to available in real time.
+
+---
+
+## 📄 License
+
+This project is provided for educational and internal organizational use. For commercial deployment or redistribution, please review licensing requirements.
+
+---
+
+## 🤝 Contributing
+
+Contributions and feedback are welcome! Please open an issue or submit a pull request for improvements, bug fixes, or feature suggestions.
+
+---
+
+## 📧 Support
+
+For help or questions, please contact the repository maintainer via GitHub Issues.
