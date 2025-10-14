@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Correct Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom styles for buttons and flash messages -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Admin Login</title>
+</head>
+<body class="bg-gray-50 p-6 min-h-screen font-sans flex items-center justify-center">
+    
+    <!-- Login Container -->
+    <div class="max-w-md w-full mx-auto bg-white p-8 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-bold text-center text-blue-600 mb-6">Admin Login</h1>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="mb-4 p-4 border-l-4 rounded-lg 
+                        {% if category == 'success' %} bg-green-100 border-green-500 text-green-700
+                        {% elif category == 'error' or category == 'warning' %} bg-red-100 border-red-500 text-red-700
+                        {% else %} bg-blue-100 border-blue-500 text-blue-700
+                        {% endif %}">
+                        <p>{{ message }}</p>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-center text-gray-600 mb-6">Enter the unique credentials from your console to log in.</p>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Login Form -->
+        <form method="post" action="{{ url_for('login') }}" class="space-y-4">
+            <input 
+                type="text" 
+                name="username" 
+                placeholder="Username" 
+                required 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            >
+            <input 
+                type="password" 
+                name="password" 
+                placeholder="Password" 
+                required 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            >
+            <button class="btn blue w-full shadow-md hover:shadow-lg" type="submit">Log In</button>
+        </form>
+
+        <div class="mt-6 flex justify-center">
+            <a href="{{ url_for('index') }}">
+                <button class="btn green shadow-md hover:shadow-lg">Back to Home</button>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

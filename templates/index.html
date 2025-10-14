@@ -1,21 +1,41 @@
 <!DOCTYPE html>
+
 <html>
 <head>
-    <link rel="stylesheet" href="/static/styles.css">
-    <title>Home</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+<title>Device Loan System</title>
 </head>
 <body>
-    <h1>Welcome to the Device Loan System</h1>
+<div class="container">
+<h1>Welcome to the Device Loan System</h1>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash-message flash-{{ category }}">
+                    <p>{{ message }}</p>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     <div class="button-container">
-    <a href="{{ url_for('loan') }}">
-        <button class="btn green">Loan Device</button>
-    </a>
-    <a href="{{ url_for('return_device') }}">
-        <button class="btn red">Return Device</button>
-    </a>
-    <a href="{{ url_for('admin') }}">
-        <button class="btn blue">Admin Panel</button>
-    </a>
+        <a href="{{ url_for('loan') }}">
+            <button class="btn green">Loan a Device</button>
+        </a>
+        <a href="{{ url_for('return_device') }}">
+            <button class="btn blue">Return a Device</button>
+        </a>
+    </div>
+    
+    <h2 style="margin-top: 50px;">Staff Access</h2>
+    <div class="button-container">
+        <a href="{{ url_for('admin') }}">
+            <button class="btn red">Admin Panel (Login Required)</button>
+        </a>
+    </div>
 </div>
+
 </body>
 </html>
