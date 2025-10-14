@@ -244,6 +244,53 @@ def admin():
     c = conn.cursor()
     
     if request.method == "POST":
+        # --- Handle Active Device Return (NEW LOGIC) ---
+        active_return_id_full = request.form.get("active_return_id")
+        if active_return_id_full:
+            try:
+                # 1. Split the full ID (e.g., 'SHC-LQ-001') to find the device
+                parts = active_return_id_full.split('-')
+                if len(parts) >= 3:
+                    rubric_id = "-".join(parts[:-1]) # Reconstruct rubric part
+                    suffix_id = parts[-1]
+                else:
+                    raise ValueError("Invalid full device ID format.")
+
+                # 2. Find the Device ID (primary key)
+                c.execute("SELECT id FROM devices WHERE rubric_id = ? AND suffix_id = ?", (rubric_id, suffix_id))
+                device_row = c.fetchone()
+                
+                if not device_row:
+                    flash(f"Error: Could not find device with ID {active_return_id_full}.", "error")
+                    conn.rollback()
+                    conn.close()
+                    return redirect(url_for("admin"))
+                
+                device_id = device_row[0]
+                return_time = datetime.now().isoformat()
+                
+                # 3. Find the most recent ACTIVE loan for this device and update the return time
+                # We update the loan with return_time IS NULL
+                c.execute("""
+                    UPDATE loans 
+                    SET return_time = ? 
+                    WHERE device_id = ? AND return_time IS NULL
+                """, (return_time, device_id))
+                
+                # 4. Update device availability to 1 (Loanable)
+                c.execute("UPDATE devices SET available = 1 WHERE id = ?", (device_id,))
+                
+                conn.commit()
+                flash(f"Device {active_return_id_full} marked as handed in successfully!", "success")
+
+            except (sqlite3.Error, ValueError) as e:
+                flash(f"Error processing return for {active_return_id_full}: {e}", "error")
+                conn.rollback()
+
+            conn.close()
+            return redirect(url_for("admin"))
+
+
         # --- Handle Device Deletion ---
         delete_id = request.form.get("delete_id")
         if delete_id:
@@ -294,7 +341,8 @@ def admin():
             SELECT 
                 s.name, 
                 s.surname, 
-                d.rubric_id || '-' || d.suffix_id AS device_full_id,
+                d.rubric_id,
+                d.suffix_id,
                 l.loan_time, 
                 l.return_time
             FROM loans l
@@ -306,7 +354,8 @@ def admin():
         
         # Process loan records to format dates and times
         formatted_loans = []
-        for name, surname, device_full_id, loan_time_str, return_time_str in loan_records:
+        for name, surname, rubric_id, suffix_id, loan_time_str, return_time_str in loan_records:
+            device_full_id = f"{rubric_id}-{suffix_id}"
             
             # Format Loan Time
             try:
@@ -345,7 +394,8 @@ def admin():
         # 3. Fetch Active Loans (New Table Data)
         c.execute("""
             SELECT 
-                d.rubric_id || '-' || d.suffix_id AS device_full_id, 
+                d.rubric_id,
+                d.suffix_id, 
                 d.category,
                 s.name, 
                 s.surname, 
@@ -357,13 +407,23 @@ def admin():
             ORDER BY d.category, s.surname
         """)
         devices_on_loan_list = c.fetchall()
-
+        
+        # Combine rubric and suffix for display in the template
+        devices_on_loan_formatted = []
+        for rubric, suffix, category, name, surname, email in devices_on_loan_list:
+             devices_on_loan_formatted.append([
+                f"{rubric}-{suffix}", # device_full_id [0]
+                category,             # category [1]
+                name,                 # name [2]
+                surname,              # surname [3]
+                email                 # email [4]
+            ])
 
         conn.close()
         return render_template("admin.html", 
                                devices=devices, 
                                loans=formatted_loans,
-                               devices_on_loan=devices_on_loan_list)
+                               devices_on_loan=devices_on_loan_formatted)
 
 if __name__ == "__main__":
     generate_credentials()
