@@ -1,90 +1,90 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const filterButtonsContainer = document.getElementById('category_filter_buttons');
-    const filterButtons = document.querySelectorAll('.category-filter-btn');
-    const deviceTableBody = document.getElementById('device_table_body');
-    // Select only the actual data rows (those with data-id), ignoring the "No devices" placeholder row
-    const deviceRows = deviceTableBody.querySelectorAll('tr[data-id]'); 
+    const devicesTable = document.getElementById('devices-table');
+    const loanButton = document.getElementById('loan-button');
     const selectedDeviceIdInput = document.getElementById('selected_device_id');
-    const loanButton = document.getElementById('loan_device_button');
-    const deviceSelectMessage = document.getElementById('device_select_message');
+    const filterButtonsContainer = document.getElementById('category-filters');
+    
+    let selectedRow = null;
 
-    // Initially disable the loan button until a device is selected
-    loanButton.disabled = true;
+    // --- 1. Row Selection Toggle Logic ---
+    devicesTable.addEventListener('click', (event) => {
+        const row = event.target.closest('.device-row');
+        if (!row) return;
 
-    // Helper function to clear all row selections
-    function clearSelection() {
-        deviceRows.forEach(r => r.classList.remove('selected-row'));
-        selectedDeviceIdInput.value = '';
-        deviceSelectMessage.textContent = 'Please click on a device row in the table above to select it.';
-        loanButton.disabled = true;
-    }
+        const deviceId = row.getAttribute('data-device-id');
 
-    // --- Filtering Logic (using buttons) ---
-    function applyFilter(selectedCategory) {
-        // 1. Update button styling: Highlight the active filter button
-        filterButtons.forEach(btn => {
-            const filterValue = btn.getAttribute('data-filter');
-            if (filterValue === selectedCategory) {
-                // Active style: blue background, white text
-                btn.classList.remove('bg-gray-200', 'text-gray-700', 'hover:bg-blue-100');
-                btn.classList.add('bg-blue-600', 'text-white');
-            } else {
-                // Inactive style: gray background, gray text
-                btn.classList.remove('bg-blue-600', 'text-white');
-                btn.classList.add('bg-gray-200', 'text-gray-700', 'hover:bg-blue-100');
+        if (row === selectedRow) {
+            // Deselect the current row
+            row.classList.remove('selected-row');
+            selectedRow = null;
+            selectedDeviceIdInput.value = '';
+            loanButton.disabled = true;
+        } else {
+            // Deselect previous row if one exists
+            if (selectedRow) {
+                selectedRow.classList.remove('selected-row');
             }
-        });
-
-        // 2. Filter table rows: Hide or show rows based on category
-        deviceRows.forEach(row => {
-            const category = row.getAttribute('data-category');
-            
-            // Show all rows if 'All' is selected, otherwise filter by category
-            if (selectedCategory === 'All' || category === selectedCategory) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
-        
-        // 3. Clear any existing device selection when the filter changes
-        clearSelection();
-    }
-
-    filterButtonsContainer.addEventListener('click', function(event) {
-        if (event.target.classList.contains('category-filter-btn')) {
-            const selectedCategory = event.target.getAttribute('data-filter');
-            applyFilter(selectedCategory);
+            // Select new row
+            row.classList.add('selected-row');
+            selectedRow = row;
+            selectedDeviceIdInput.value = deviceId;
+            loanButton.disabled = false;
         }
     });
 
-    // --- Device Selection Toggle Logic ---
-    deviceRows.forEach(row => {
-        row.addEventListener('click', () => {
-            const deviceId = row.getAttribute('data-id');
-            const deviceName = row.getAttribute('data-rubric') + '-' + row.getAttribute('data-suffix');
+    // --- 2. Filter Button Logic ---
+    filterButtonsContainer.addEventListener('click', (event) => {
+        const button = event.target.closest('.filter-btn');
+        if (!button) return;
+
+        const selectedCategory = button.getAttribute('data-category');
+        const allRows = devicesTable.querySelectorAll('.device-row');
+        const allButtons = filterButtonsContainer.querySelectorAll('.filter-btn');
+
+        // Reset previous selection and button styling
+        if (selectedRow) {
+            selectedRow.classList.remove('selected-row');
+            selectedRow = null;
+            selectedDeviceIdInput.value = '';
+            loanButton.disabled = true;
+        }
+        
+        allButtons.forEach(btn => btn.classList.remove('active-filter'));
+        button.classList.add('active-filter');
+
+
+        // Apply filter to table rows
+        allRows.forEach(row => {
+            const rowCategory = row.getAttribute('data-category');
             
-            // Check if this row is already selected
-            const isSelected = row.classList.contains('selected-row');
-
-            // Clear any previously selected row (important for toggling)
-            clearSelection(); 
-
-            if (!isSelected) {
-                // If it was NOT selected, select the current row
-                row.classList.add('selected-row');
-
-                // Update the hidden input field
-                selectedDeviceIdInput.value = deviceId;
-                
-                // Update the message and enable the button
-                deviceSelectMessage.textContent = `Selected Device: ${deviceName} (ID: ${deviceId})`;
-                loanButton.disabled = false;
-            } 
-            // If it WAS selected, clearSelection() already removed the highlight and reset the form fields.
+            if (selectedCategory === 'All' || rowCategory === selectedCategory) {
+                row.style.display = ''; // Show row
+            } else {
+                row.style.display = 'none'; // Hide row
+            }
         });
     });
 
-    // Ensure the initial filter is applied and the 'All Devices' button is highlighted on load
-    applyFilter('All');
+    // Initialize the "Show All" button as active on load
+    const allButton = document.querySelector('[data-category="All"]');
+    if(allButton) {
+        allButton.classList.add('active-filter');
+    }
+
+    // Add CSS for selected row (needed since this is a separate file)
+    const style = document.createElement('style');
+    style.textContent = `
+        .selected-row {
+            background-color: #fce8d5 !important; /* Light orange for visual feedback */
+            border: 2px solid #ff9800;
+        }
+        .active-filter {
+            background-color: #00bcd4 !important; /* A different blue/cyan for active filter */
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+    `;
+    document.head.appendChild(style);
 });
+// This script handles the automatic generation of the device Rubric ID
+// and confirmation for delete actions in the admin interface.

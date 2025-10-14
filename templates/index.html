@@ -2,37 +2,39 @@
 
 <html>
 <head>
+<!-- Load Tailwind CSS for modern styling -->
+<script src="https://www.google.com/search?q=https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 <title>Device Loan System</title>
 </head>
-<body>
-<div class="container">
-<h1>Welcome to the Device Loan System</h1>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen font-sans">
+<div class="max-w-md w-full p-8 bg-white rounded-xl shadow-2xl text-center">
+<h1 class="text-4xl font-extrabold text-gray-900 mb-6">Device Loan System</h1>
 
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-                <div class="flash-message flash-{{ category }}">
+                <div class="mb-4 p-4 border-l-4 rounded-lg 
+                    {% if category == 'success' %} bg-green-100 border-green-500 text-green-700
+                    {% elif category == 'error' %} bg-red-100 border-red-500 text-red-700
+                    {% else %} bg-blue-100 border-blue-500 text-blue-700
+                    {% endif %}">
                     <p>{{ message }}</p>
                 </div>
             {% endfor %}
         {% endif %}
     {% endwith %}
 
-    <div class="button-container">
+    <div class="button-container flex flex-col space-y-4">
         <a href="{{ url_for('loan') }}">
-            <button class="btn green">Loan a Device</button>
+            <button class="btn blue w-full">Loan a Device</button>
         </a>
         <a href="{{ url_for('return_device') }}">
-            <button class="btn blue">Return a Device</button>
+            <button class="btn green w-full">Return a Device</button>
         </a>
-    </div>
-    
-    <h2 style="margin-top: 50px;">Staff Access</h2>
-    <div class="button-container">
         <a href="{{ url_for('admin') }}">
-            <button class="btn red">Admin Panel (Login Required)</button>
+            <button class="btn red w-full">Admin Panel</button>
         </a>
     </div>
 </div>

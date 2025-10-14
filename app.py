@@ -1,59 +1,61 @@
+import secrets
+import string
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 import sqlite3
 from datetime import datetime
-import secrets
-import string
+import sys
 
-# --- CONFIGURATION ---
 app = Flask(__name__)
-# Generate a secure secret key for session management (CRITICAL for security)
-app.secret_key = secrets.token_hex(16) 
+# Generate a strong, unique secret key for session management
+app.secret_key = secrets.token_hex(24)
+
 DB_FILE = "device_loans.db"
-# ---------------------
 
-# --- AUTHENTICATION SETUP ---
+# --- Admin Authentication Setup ---
+# Credentials generated on startup for this instance
+ADMIN_USERNAME = ""
+ADMIN_PASSWORD = ""
+
 def generate_credentials():
-    """Generates a secure, random username and password on application start."""
-    # Username: prefix + 4 random digits
-    username_chars = string.digits
-    # Password: 16 characters from letters, digits, and punctuation
-    password_chars = string.ascii_letters + string.digits + string.punctuation
+    """Generates unique username and password for this app instance."""
+    global ADMIN_USERNAME, ADMIN_PASSWORD
     
-    admin_username = "admin_" + ''.join(secrets.choice(username_chars) for i in range(4))
-    admin_password = ''.join(secrets.choice(password_chars) for i in range(16))
-    return admin_username, admin_password
+    # Generate a unique username (e.g., admin_4589)
+    random_suffix = ''.join(secrets.choice(string.digits) for _ in range(4))
+    ADMIN_USERNAME = f"admin_{random_suffix}"
+    
+    # Generate a strong, complex password
+    chars = string.ascii_letters + string.digits + "!@#$%^&*"
+    ADMIN_PASSWORD = ''.join(secrets.choice(chars) for _ in range(16))
 
-# Generate credentials when the module is loaded
-ADMIN_USERNAME, ADMIN_PASSWORD = generate_credentials()
-
-# This is the section that pastes the login details to the terminal
-print("\n--- NEW ADMIN CREDENTIALS (Valid for this session only) ---")
-print(f"URL: /login")
-print(f"Username: {ADMIN_USERNAME}")
-print(f"Password: {ADMIN_PASSWORD}")
-print("-----------------------------------------------------------\n")
-# ----------------------------
+    # Print credentials to the terminal
+    print("\n" + "="*50)
+    print("!!! ADMIN ACCESS CREDENTIALS !!!")
+    print(f"USERNAME: {ADMIN_USERNAME}")
+    print(f"PASSWORD: {ADMIN_PASSWORD}")
+    print("Please use these to log into the /admin panel.")
+    print("Credentials are valid ONLY for this session.")
+    print("="*50 + "\n")
 
 # Initialize database
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Devices Table
+    # Ensure the devices table has the necessary columns
     c.execute('''CREATE TABLE IF NOT EXISTS devices (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     rubric_id TEXT,
                     suffix_id TEXT,
                     category TEXT,
-                    available INTEGER -- 1 for Loanable/Available, 0 for Loaned Out
+                    available INTEGER -- 1 for loanable, 0 for on loan
                 )''')
-    # Students Table
     c.execute('''CREATE TABLE IF NOT EXISTS students (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT,
                     surname TEXT,
-                    email TEXT
+                    email TEXT UNIQUE
                 )''')
-    # Loans Table
+    # Ensure the loans table has loan_time and return_time
     c.execute('''CREATE TABLE IF NOT EXISTS loans (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     student_id INTEGER,
@@ -66,7 +68,23 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- ROUTES ---
+# --- Utility Functions ---
+
+def login_required(f):
+    """Decorator to check if user is logged in."""
+    def decorated_function(*args, **kwargs):
+        if 'logged_in' not in session or not session['logged_in']:
+            flash("You must log in to access the admin panel.", "error")
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    decorated_function.__name__ = f.__name__
+    return decorated_function
+
+def get_db_connection():
+    """Opens a new database connection."""
+    return sqlite3.connect(DB_FILE)
+
+# --- Routes ---
 
 @app.route("/")
 def index():
@@ -77,135 +95,267 @@ def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-
+        
+        # Check against the temporary credentials
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-            session["logged_in"] = True
-            flash("Login successful! Welcome to the Admin Panel.", "success")
+            session['logged_in'] = True
+            flash("Logged in successfully!", "success")
             return redirect(url_for("admin"))
         else:
-            flash("Invalid username or password. Please try again.", "error")
-            return redirect(url_for("login"))
-
+            flash("Invalid credentials. Please try again.", "error")
+            return render_template("login.html")
+    
     return render_template("login.html")
 
 @app.route("/logout")
 def logout():
-    session.pop("logged_in", None)
-    flash("You have been successfully logged out.", "info")
+    session.pop('logged_in', None)
+    flash("You have been logged out.", "success")
     return redirect(url_for("index"))
+
 
 @app.route("/loan", methods=["GET", "POST"])
 def loan():
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
     c = conn.cursor()
+    
     if request.method == "POST":
-        name = request.form["name"]
-        surname = request.form["surname"]
-        email = request.form["email"]
-        # The selected device ID is now handled by the form post
-        device_id = request.form["selected_device_id"]
+        name = request.form.get("name")
+        surname = request.form.get("surname")
+        email = request.form.get("email")
+        device_id = request.form.get("selected_device_id") # Changed to use the hidden field ID
         
         if not device_id:
-             flash("Please select a device to loan.", "error")
-             conn.close()
-             return redirect(url_for("loan"))
+            flash("Please select a device before attempting to loan.", "error")
+            conn.close()
+            return redirect(url_for("loan"))
 
-        # 1. Insert student
-        c.execute("INSERT INTO students (name, surname, email) VALUES (?, ?, ?)", (name, surname, email))
-        student_id = c.lastrowid
+        try:
+            # Check if student already exists, or insert new one
+            c.execute("SELECT id FROM students WHERE email = ?", (email,))
+            student_row = c.fetchone()
+            
+            if student_row:
+                student_id = student_row[0]
+                # Update name/surname just in case
+                c.execute("UPDATE students SET name = ?, surname = ? WHERE id = ?", (name, surname, student_id))
+            else:
+                # Insert new student
+                c.execute("INSERT INTO students (name, surname, email) VALUES (?, ?, ?)", (name, surname, email))
+                student_id = c.lastrowid
+            
+            # Check device availability just in case (though UI should prevent this)
+            c.execute("SELECT available FROM devices WHERE id = ?", (device_id,))
+            if c.fetchone()[0] == 0:
+                flash("Error: Device is already on loan.", "error")
+                conn.rollback()
+                conn.close()
+                return redirect(url_for("loan"))
+
+            # Insert loan
+            loan_time = datetime.now().isoformat()
+            c.execute("INSERT INTO loans (student_id, device_id, loan_time) VALUES (?, ?, ?)", (student_id, device_id, loan_time))
+            
+            # Update device availability to 0 (On Loan)
+            c.execute("UPDATE devices SET available = 0 WHERE id = ?", (device_id,))
+            
+            conn.commit()
+            flash(f"Device ID {device_id} loaned successfully to {name}!", "success")
         
-        # 2. Insert loan and log time
-        loan_time = datetime.now().isoformat()
-        c.execute("INSERT INTO loans (student_id, device_id, loan_time) VALUES (?, ?, ?)", (student_id, device_id, loan_time))
-        
-        # 3. Update device availability to 0 (Loaned Out)
-        c.execute("UPDATE devices SET available = 0 WHERE id = ?", (device_id,))
-        conn.commit()
-        flash("Device loaned successfully! Remember to return it on time.", "success")
-        return redirect(url_for("loan"))
-    else:
-        # GET request: fetch all available devices with detailed information
-        c.execute("SELECT id, rubric_id, suffix_id, category FROM devices WHERE available = 1 ORDER BY category, rubric_id")
-        devices = c.fetchall()
+        except sqlite3.Error as e:
+            flash(f"Database Error: {e}", "error")
+            conn.rollback()
+
         conn.close()
-        # Pass a list of categories for the filter dropdown
-        categories = sorted(list(set(d[3] for d in devices)))
+        return redirect(url_for("loan"))
+    
+    else:
+        # GET request: Fetch available devices
+        c.execute("SELECT id, rubric_id, suffix_id, category FROM devices WHERE available = 1")
+        devices = c.fetchall()
+        
+        # Get all unique categories for filtering buttons
+        c.execute("SELECT DISTINCT category FROM devices")
+        categories = [row[0] for row in c.fetchall()]
+
+        conn.close()
         return render_template("loan.html", devices=devices, categories=categories)
 
 @app.route("/return", methods=["GET", "POST"])
 def return_device():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    if request.method == "POST":
-        student_id = request.form["student"]
-        device_id = request.form["device"]
-        return_time = datetime.now().isoformat()
-        
-        c.execute("UPDATE loans SET return_time = ? WHERE student_id = ? AND device_id = ? AND return_time IS NULL", (return_time, student_id, device_id))
-        
-        c.execute("UPDATE devices SET available = 1 WHERE id = ?", (device_id,))
-        conn.commit()
-        flash("Device returned successfully!", "success")
-        return redirect(url_for("return_device"))
-    else:
-        # Fetch students who have active loans
-        c.execute("""
-            SELECT s.id, s.name || ' ' || s.surname 
-            FROM students s 
-            JOIN loans l ON s.id = l.student_id 
-            WHERE l.return_time IS NULL 
-            GROUP BY s.id
-        """)
-        students = c.fetchall()
-        
-        # Fetch devices that are currently loaned out
-        c.execute("SELECT id, rubric_id || '-' || suffix_id || ' (' || category || ')' FROM devices WHERE available = 0")
-        devices = c.fetchall()
-        
-        conn.close()
-        return render_template("return.html", students=students, devices=devices)
-
-@app.route("/admin", methods=["GET", "POST"])
-def admin():
-    # Enforce login requirement
-    if not session.get("logged_in"):
-        flash("Access denied. Please log in to view the Admin Panel.", "warning")
-        return redirect(url_for("login"))
-        
-    conn = sqlite3.connect(DB_FILE)
+    conn = get_db_connection()
     c = conn.cursor()
     
     if request.method == "POST":
-        if "delete_id" in request.form:
-            # Handle Device Deletion
-            device_id = request.form["delete_id"]
-            c.execute("DELETE FROM devices WHERE id = ?", (device_id,))
+        student_id = request.form.get("student")
+        device_id = request.form.get("device")
+        
+        try:
+            return_time = datetime.now().isoformat()
+            
+            # Find the active loan and set the return time
+            c.execute("UPDATE loans SET return_time = ? WHERE student_id = ? AND device_id = ? AND return_time IS NULL", 
+                      (return_time, student_id, device_id))
+            
+            if c.rowcount == 0:
+                flash("Error: Could not find an active loan for this student/device combination.", "error")
+                conn.rollback()
+                conn.close()
+                return redirect(url_for("return_device"))
+                
+            # Update device availability to 1 (Loanable)
+            c.execute("UPDATE devices SET available = 1 WHERE id = ?", (device_id,))
+            
             conn.commit()
-            flash("Device deleted successfully!", "success")
+            flash(f"Device ID {device_id} returned successfully!", "success")
+        
+        except sqlite3.Error as e:
+            flash(f"Database Error: {e}", "error")
+            conn.rollback()
             
-        else:
-            # Handle New Device Addition
-            rubric_id = request.form["rubric_id"]
-            suffix_id = request.form["suffix_id"]
-            category = request.form["category"]
-            
-            c.execute("INSERT INTO devices (rubric_id, suffix_id, category, available) VALUES (?, ?, ?, 1)", (rubric_id, suffix_id, category))
+        conn.close()
+        return redirect(url_for("return_device"))
+    
+    else:
+        # GET request: Fetch students who have active loans
+        c.execute("""
+            SELECT DISTINCT s.id, s.name || ' ' || s.surname 
+            FROM students s 
+            JOIN loans l ON s.id = l.student_id 
+            WHERE l.return_time IS NULL
+        """)
+        students_with_active_loans = c.fetchall()
+        
+        # Fetch devices that are currently on loan
+        c.execute("""
+            SELECT d.id, d.rubric_id || '-' || d.suffix_id || ' (' || d.category || ')' 
+            FROM devices d 
+            WHERE d.available = 0
+        """)
+        devices_on_loan = c.fetchall()
+        
+        conn.close()
+        return render_template("return.html", students=students_with_active_loans, devices=devices_on_loan)
+
+@app.route("/admin", methods=["GET", "POST"])
+@login_required
+def admin():
+    conn = get_db_connection()
+    c = conn.cursor()
+    
+    if request.method == "POST":
+        # --- Handle Device Deletion ---
+        delete_id = request.form.get("delete_id")
+        if delete_id:
+            try:
+                # Check if the device is currently on loan
+                c.execute("SELECT available FROM devices WHERE id = ?", (delete_id,))
+                available_status = c.fetchone()
+                
+                if available_status is not None and available_status[0] == 0:
+                    flash(f"Cannot delete device ID {delete_id}. It is currently on loan.", "error")
+                else:
+                    c.execute("DELETE FROM devices WHERE id = ?", (delete_id,))
+                    conn.commit()
+                    flash(f"Device ID {delete_id} deleted successfully!", "success")
+            except sqlite3.Error as e:
+                flash(f"Error deleting device: {e}", "error")
+                conn.rollback()
+            conn.close()
+            return redirect(url_for("admin"))
+
+        # --- Handle Device Addition ---
+        rubric_id = request.form.get("rubric_id")
+        suffix_id = request.form.get("suffix_id")
+        category = request.form.get("category")
+        
+        try:
+            # New devices are inserted with available = 1 (Loanable)
+            c.execute("INSERT INTO devices (rubric_id, suffix_id, category, available) VALUES (?, ?, ?, 1)", 
+                      (rubric_id, suffix_id, category))
             conn.commit()
             flash("Device added successfully!", "success")
-            
-        return redirect(url_for("admin"))
+        except sqlite3.Error as e:
+            flash(f"Error adding device: {e}", "error")
+            conn.rollback()
         
+        conn.close()
+        return redirect(url_for("admin"))
+    
     else:
-        # GET request: Display all data
+        # GET request: Fetch data for display
+        
+        # 1. Fetch all students (not used in current template but good for completeness)
         c.execute("SELECT * FROM students")
         students = c.fetchall()
-        c.execute("SELECT id, rubric_id, suffix_id, category, available FROM devices")
+        
+        # 2. Fetch all devices
+        c.execute("SELECT * FROM devices ORDER BY id DESC")
         devices = c.fetchall()
-        c.execute("SELECT * FROM loans")
-        loans = c.fetchall()
+        
+        # 3. Fetch detailed loan history for the new table
+        c.execute("""
+            SELECT 
+                s.name, 
+                s.surname, 
+                d.rubric_id || '-' || d.suffix_id AS device_full_id,
+                l.loan_time, 
+                l.return_time
+            FROM loans l
+            JOIN students s ON l.student_id = s.id
+            JOIN devices d ON l.device_id = d.id
+            ORDER BY l.loan_time DESC
+        """)
+        loan_records = c.fetchall()
+        
+        # Process loan records to format dates and times
+        formatted_loans = []
+        for name, surname, device_full_id, loan_time_str, return_time_str in loan_records:
+            
+            # Format Loan Time
+            try:
+                loan_dt = datetime.fromisoformat(loan_time_str)
+                loan_date = loan_dt.strftime("%d/%m/%y")
+                loan_time = loan_dt.strftime("%H:%M")
+            except ValueError:
+                loan_date = "Invalid Date"
+                loan_time = "Invalid Time"
+            
+            # Format Return Time (or set to N/A if null)
+            return_date = "N/A"
+            return_time = "N/A"
+            status = "On Loan"
+            
+            if return_time_str:
+                try:
+                    return_dt = datetime.fromisoformat(return_time_str)
+                    return_date = return_dt.strftime("%d/%m/%y")
+                    return_time = return_dt.strftime("%H:%M")
+                    status = "Returned"
+                except ValueError:
+                    return_date = "Invalid Date"
+                    return_time = "Invalid Time"
+
+            formatted_loans.append({
+                'student_name': f"{name} {surname}",
+                'device_id': device_full_id,
+                'loan_date': loan_date,
+                'loan_time': loan_time,
+                'return_date': return_date,
+                'return_time': return_time,
+                'status': status
+            })
+
         conn.close()
-        return render_template("admin.html", students=students, devices=devices, loans=loans)
+        return render_template("admin.html", 
+                               devices=devices, 
+                               loans=formatted_loans)
 
 if __name__ == "__main__":
+    generate_credentials()
     init_db()
+    # Ensure sys.path is correct for relative imports in some environments
+    if "." not in sys.path:
+        sys.path.append(".")
+    
     app.run(debug=True)
