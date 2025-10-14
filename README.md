@@ -1,1 +1,120 @@
-💻 Device Loan Management SystemThis is a simple, browser-based web application built with Python (Flask) and SQLite for managing the loan and return of devices (Laptops, iPads, etc.) within a school or organization.✨ Key FeaturesEasy Device Loans: Quickly check out devices to students, tracking their name, surname, and email.Real-time Inventory: Devices are marked as Loanable or Loaned Out instantly.Admin Panel (Secured): Dedicated section for adding/deleting devices and viewing all historical and active loan data.Automated Time Stamping: All loans and returns are automatically recorded with specific date (DD/MM/YY) and time (HH:MM) stamps.Quick Return Action: Administrators can mark a device as returned directly from the active loan list.📁 File StructureFile/FolderDescriptionapp.pyThe main Flask application containing all routing, database (SQLite) connection, and loan logic.device_loans.dbThe SQLite database file (created automatically on first run) that stores all device, student, and loan data.templates/Directory for HTML templates.  ├── index.htmlThe main landing page.  ├── loan.htmlPage for loaning a device.  ├── return.htmlPage for returning a device using student/device dropdowns.  ├── login.htmlAdmin login page.  └── admin.htmlThe main Admin Dashboard with inventory and history.static/Directory for supporting assets.  ├── styles.cssCustom styles for buttons and tables.  └── loan.jsJavaScript for handling device selection and filtering on the loan page.🚀 Getting StartedPrerequisitesYou need Python 3 installed to run the Flask application.1. Run the ApplicationMake sure all files are in the same directory.Open your terminal or command prompt in that directory.Run the application using the following command:python app.py 2. Access CredentialsWhen you run app.py, the system will automatically generate unique Admin credentials (Username and Password) for that session. Look for them printed in your terminal:================================================== !!! ADMIN ACCESS CREDENTIALS !!! USERNAME: admin_xxxx PASSWORD: [a complex string] Please use these to log into the /admin panel. Credentials are valid ONLY for this session. ================================================== 3. Using the WebsiteHome Page (/): Navigate to the main page to choose between Loan, Return, or Admin functions.Loan Device (/loan):Enter student details (Name, Surname, Email).Use the Category buttons to filter the list of available devices.Click a device row in the table to select it, then click Loan Device.Admin Panel (/admin):Log in using the generated credentials.Add New Device: Use the form to input the device category, rubric, and suffix.Devices Currently On Loan: See who has which device. Use the Mark as Handed In button to instantly process a return.Device Loan History: View a complete, time-stamped record of all past and current loans.🛠️ Technical DetailsDatabase SchemaThe system uses three main tables:devices: Stores inventory (rubric_id, suffix_id, category, available status).students: Stores borrower information (name, surname, email).loans: Links students and devices for each transaction, recording loan_time and return_time.Device ID FormatThe system merges the rubric_id and suffix_id for display (e.g., SHC-LQ-001).Return Logic (Admin)When the Mark as Handed In button is pressed in the Admin Panel, the app.py logic handles the full device ID string, finds the corresponding device, and automatically sets the return_time on the active loan and updates the device's available status back to '1'.
+💻 Device Loan Management System
+This is a simple, browser-based web application built with Python (Flask) and SQLite for managing the loan and return of devices (Laptops, iPads, etc.) within a school or organization.
+
+✨ Key Features
+Easy Device Loans: Quickly check out devices to students, tracking their name, surname, and email.
+
+Real-time Inventory: Devices are marked as Loanable or Loaned Out instantly.
+
+Admin Panel (Secured): Dedicated section for adding/deleting devices and viewing all historical and active loan data.
+
+Automated Time Stamping: All loans and returns are automatically recorded with specific date (DD/MM/YY) and time (HH:MM) stamps.
+
+Quick Return Action: Administrators can mark a device as returned directly from the active loan list.
+
+📁 File Structure
+File/Folder
+
+Description
+
+app.py
+
+The main Flask application containing all routing, database (SQLite) connection, and loan logic.
+
+device_loans.db
+
+The SQLite database file (created automatically on first run) that stores all device, student, and loan data.
+
+templates/
+
+Directory for HTML templates.
+
+  ├── index.html
+
+The main landing page.
+
+  ├── loan.html
+
+Page for loaning a device.
+
+  ├── return.html
+
+Page for returning a device using student/device dropdowns.
+
+  ├── login.html
+
+Admin login page.
+
+  └── admin.html
+
+The main Admin Dashboard with inventory and history.
+
+static/
+
+Directory for supporting assets.
+
+  ├── styles.css
+
+Custom styles for buttons and tables.
+
+  └── loan.js
+
+JavaScript for handling device selection and filtering on the loan page.
+
+🚀 Getting Started
+Prerequisites
+You need Python 3 installed to run the Flask application.
+
+1. Run the Application
+Make sure all files are in the same directory.
+
+Open your terminal or command prompt in that directory.
+
+Run the application using the following command:
+
+python app.py
+
+2. Access Credentials
+When you run app.py, the system will automatically generate unique Admin credentials (Username and Password) for that session. Look for them printed in your terminal:
+
+================================================== 
+!!! ADMIN ACCESS CREDENTIALS !!! 
+USERNAME: admin_xxxx 
+PASSWORD: [a complex string] 
+Please use these to log into the /admin panel. 
+Credentials are valid ONLY for this session. 
+================================================== 
+
+3. Using the Website
+Home Page (/): Navigate to the main page to choose between Loan, Return, or Admin functions.
+
+Loan Device (/loan):
+
+Enter student details (Name, Surname, Email).
+
+Use the Category buttons to filter the list of available devices.
+
+Click a device row in the table to select it, then click Loan Device.
+
+Admin Panel (/admin):
+
+Log in using the generated credentials.
+
+Add New Device: Use the form to input the device category, rubric, and suffix.
+
+Devices Currently On Loan: See who has which device. Use the Mark as Handed In button to instantly process a return.
+
+Device Loan History: View a complete, time-stamped record of all past and current loans.
+
+🛠️ Technical Details
+Database Schema
+The system uses three main tables:
+
+devices: Stores inventory (rubric_id, suffix_id, category, available status).
+
+students: Stores borrower information (name, surname, email).
+
+loans: Links students and devices for each transaction, recording loan_time and return_time.
+
+Return Logic (Admin)
+When the Mark as Handed In button is pressed in the Admin Panel, the app.py logic handles the full device ID string, finds the corresponding device, and automatically sets the return_time on the active loan and updates the device's available status back to '1'.
