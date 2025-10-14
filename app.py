@@ -285,15 +285,11 @@ def admin():
     else:
         # GET request: Fetch data for display
         
-        # 1. Fetch all students (not used in current template but good for completeness)
-        c.execute("SELECT * FROM students")
-        students = c.fetchall()
-        
-        # 2. Fetch all devices
+        # 1. Fetch all devices
         c.execute("SELECT * FROM devices ORDER BY id DESC")
         devices = c.fetchall()
         
-        # 3. Fetch detailed loan history for the new table
+        # 2. Fetch detailed loan history (all loans, including returned)
         c.execute("""
             SELECT 
                 s.name, 
@@ -346,10 +342,28 @@ def admin():
                 'status': status
             })
 
+        # 3. Fetch Active Loans (New Table Data)
+        c.execute("""
+            SELECT 
+                d.rubric_id || '-' || d.suffix_id AS device_full_id, 
+                d.category,
+                s.name, 
+                s.surname, 
+                s.email
+            FROM devices d
+            JOIN loans l ON d.id = l.device_id
+            JOIN students s ON l.student_id = s.id
+            WHERE d.available = 0 AND l.return_time IS NULL
+            ORDER BY d.category, s.surname
+        """)
+        devices_on_loan_list = c.fetchall()
+
+
         conn.close()
         return render_template("admin.html", 
                                devices=devices, 
-                               loans=formatted_loans)
+                               loans=formatted_loans,
+                               devices_on_loan=devices_on_loan_list)
 
 if __name__ == "__main__":
     generate_credentials()
