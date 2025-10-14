@@ -6,6 +6,7 @@ import sqlite3
 from datetime import datetime # datetime is already imported
 import sys
 import io
+import pandas as pd # Make sure pandas is imported
 
 app = Flask(__name__)
 # Generate a strong, unique secret key for session management
@@ -45,28 +46,28 @@ def init_db():
     c = conn.cursor()
     # Ensure the devices table has the necessary columns
     c.execute('''CREATE TABLE IF NOT EXISTS devices (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    rubric_id TEXT,
-                    suffix_id TEXT,
-                    category TEXT,
-                    available INTEGER -- 1 for loanable, 0 for on loan
-                )''')
+                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     rubric_id TEXT,
+                     suffix_id TEXT,
+                     category TEXT,
+                     available INTEGER -- 1 for loanable, 0 for on loan
+                 )''')
     c.execute('''CREATE TABLE IF NOT EXISTS students (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT,
-                    surname TEXT,
-                    email TEXT UNIQUE
-                )''')
+                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     name TEXT,
+                     surname TEXT,
+                     email TEXT UNIQUE
+                 )''')
     # Ensure the loans table has loan_time and return_time
     c.execute('''CREATE TABLE IF NOT EXISTS loans (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    student_id INTEGER,
-                    device_id INTEGER,
-                    loan_time TEXT,
-                    return_time TEXT,
-                    FOREIGN KEY(student_id) REFERENCES students(id),
-                    FOREIGN KEY(device_id) REFERENCES devices(id)
-                )''')
+                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     student_id INTEGER,
+                     device_id INTEGER,
+                     loan_time TEXT,
+                     return_time TEXT,
+                     FOREIGN KEY(student_id) REFERENCES students(id),
+                     FOREIGN KEY(device_id) REFERENCES devices(id)
+                 )''')
     conn.commit()
     conn.close()
 
@@ -337,15 +338,17 @@ def admin():
         suffix_id = request.form.get("suffix_id")
         category = request.form.get("category")
         
-        try:
-            # New devices are inserted with available = 1 (Loanable)
-            c.execute("INSERT INTO devices (rubric_id, suffix_id, category, available) VALUES (?, ?, ?, 1)", 
-                      (rubric_id, suffix_id, category))
-            conn.commit()
-            flash("Device added successfully!", "success")
-        except sqlite3.Error as e:
-            flash(f"Error adding device: {e}", "error")
-            conn.rollback()
+        # This part handles the device addition, but only if rubric_id, suffix_id, and category are present
+        if rubric_id and suffix_id and category:
+            try:
+                # New devices are inserted with available = 1 (Loanable)
+                c.execute("INSERT INTO devices (rubric_id, suffix_id, category, available) VALUES (?, ?, ?, 1)", 
+                          (rubric_id, suffix_id, category))
+                conn.commit()
+                flash("Device added successfully!", "success")
+            except sqlite3.Error as e:
+                flash(f"Error adding device: {e}", "error")
+                conn.rollback()
         
         conn.close()
         return redirect(url_for("admin"))
@@ -416,10 +419,10 @@ def admin():
         for rubric, suffix, category, name, surname, email in devices_on_loan_list:
              devices_on_loan_formatted.append([
                  f"{rubric}-{suffix}", # device_full_id [0]
-                 category,             # category [1]
-                 name,                 # name [2]
-                 surname,              # surname [3]
-                 email                 # email [4]
+                 category,            # category [1]
+                 name,                # name [2]
+                 surname,             # surname [3]
+                 email                # email [4]
              ])
 
         conn_get.close()
@@ -533,7 +536,7 @@ def export_admin_data():
 @login_required
 def import_admin_data():
     """
-    Handles the upload of an Excel backup file to overwrite the current database.
+    Handles the upload of a CSV backup file to overwrite the current database.
     This is a destructive "wipe-and-replace" operation.
     """
     if 'backup_file' not in request.files or not request.files['backup_file'].filename:
@@ -542,34 +545,43 @@ def import_admin_data():
 
     file = request.files['backup_file']
 
-    if not file.filename.endswith('.xlsx'):
-        flash("Invalid file type. Please upload an .xlsx Excel file.", "error")
+    if not file.filename.endswith('.csv'):
+        flash("Invalid file type. Please upload a .csv file.", "error")
         return redirect(url_for("admin"))
 
-    conn = None # Ensure conn is defined to be accessible in the finally block
+    conn = None
     try:
-        # Read the entire Excel file into a pandas DataFrame
-        df = pd.read_excel(file, header=None)
+        # --- NEW ROBUST PARSING LOGIC ---
+        file_content = file.read().decode('utf-8')
 
-        # --- 1. Find the start and end of each data section ---
-        section_indices = {}
-        for i, row in df.iterrows():
-            if str(row[0]).startswith("---"):
-                section_name = row[0].strip("- ")
-                section_indices[section_name] = i
-
-        # --- 2. Extract DataFrames for Inventory and History ---
-        # Get Inventory Data
-        inv_start = section_indices.get("Current Device Inventory")
-        hist_start = section_indices.get("Device Loan History (All Time)")
+        # Split the content by the section headers
+        parts = file_content.split('---')
         
-        if inv_start is None or hist_start is None:
-            raise ValueError("Could not find required data sections in the Excel file.")
+        inventory_str = None
+        history_str = None
 
-        inventory_df = pd.read_excel(file, header=inv_start + 1, nrows=(hist_start - inv_start - 3))
-        history_df = pd.read_excel(file, header=hist_start + 1)
+        for part in parts:
+            if "Current Device Inventory" in part:
+                # Get the content after the header line and strip whitespace
+                inventory_str = "\n".join(part.splitlines()[1:]).strip()
+            elif "Device Loan History (All Time)" in part:
+                # Get the content after the header line and strip whitespace
+                history_str = "\n".join(part.splitlines()[1:]).strip()
+
+        # --- MODIFIED ERROR CHECKING ---
+        if not inventory_str or not history_str:
+            missing_sections = []
+            if not inventory_str:
+                missing_sections.append("'Current Device Inventory'")
+            if not history_str:
+                missing_sections.append("'Device Loan History (All Time)'")
+            raise ValueError(f"Could not find required section(s): {', '.join(missing_sections)}. Please ensure the uploaded CSV is a valid export from this application.")
+
+        # Read the string data into DataFrames
+        inventory_df = pd.read_csv(io.StringIO(inventory_str))
+        history_df = pd.read_csv(io.StringIO(history_str))
         
-        # --- 3. Start Database Transaction to Wipe and Replace Data ---
+        # --- DATABASE OPERATIONS (UNCHANGED) ---
         conn = get_db_connection()
         c = conn.cursor()
 
@@ -577,12 +589,9 @@ def import_admin_data():
         c.execute("DELETE FROM loans")
         c.execute("DELETE FROM students")
         c.execute("DELETE FROM devices")
-        # Reset auto-increment counters for clean IDs
-        c.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'loans'")
-        c.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'students'")
-        c.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'devices'")
+        c.execute("UPDATE sqlite_sequence SET seq = 0 WHERE name IN ('loans', 'students', 'devices')")
 
-        # --- 4. Repopulate the 'devices' table from the inventory data ---
+        # Repopulate the 'devices' table
         for _, row in inventory_df.iterrows():
             status = 1 if row['Status'] == 'Loanable' else 0
             c.execute(
@@ -590,25 +599,14 @@ def import_admin_data():
                 (row['Rubric ID'], row['Suffix ID'], row['Category'], status)
             )
 
-        # --- 5. Repopulate 'students' and 'loans' tables from history data ---
-        student_email_to_id = {} # To avoid creating duplicate students
-        
-        # We need to iterate from oldest to newest to correctly determine final device status
-        for _, row in history_df.iloc[::-1].iterrows():
-            # Get or create the student
+        # Repopulate 'students' and 'loans' tables
+        student_email_to_id = {}
+        for _, row in history_df.iloc[::-1].iterrows(): # Iterate oldest to newest
             student_name = row['Student Name']
-            # A simple (but brittle) way to get email from another table; assuming email is not in history
-            # For a robust solution, student email should be in the export.
-            # Here, we'll just use the name as a key. A better approach would be to have a unique ID in the export.
-            
-            # This part assumes a 'Student Email' column exists in your export. If not, you may need to adjust.
-            # Let's pretend the format is "First Last (email@example.com)" or you add email to export.
-            # For this example, we will assume a simple name split.
-            name_parts = student_name.split()
-            first_name = name_parts[0] if name_parts else ''
+            name_parts = str(student_name).split()
+            first_name = name_parts[0] if name_parts else 'Unknown'
             last_name = ' '.join(name_parts[1:]) if len(name_parts) > 1 else ''
             
-            # Create a placeholder email since it's required to be unique
             student_email = f"{first_name.lower()}.{last_name.lower()}@imported.local"
 
             if student_email not in student_email_to_id:
@@ -620,44 +618,50 @@ def import_admin_data():
                 student_email_to_id[student_email] = student_id
             else:
                 student_id = student_email_to_id[student_email]
-
-            # Find the corresponding device_id
-            rubric_id, suffix_id = str(row['Device ID']).rsplit('-', 1)
+            
+            try:
+                rubric_id, suffix_id = str(row['Device ID']).rsplit('-', 1)
+            except ValueError:
+                continue
+                
             c.execute("SELECT id FROM devices WHERE rubric_id = ? AND suffix_id = ?", (rubric_id, suffix_id))
             device_res = c.fetchone()
-            if not device_res: continue # Skip if device not found
+            if not device_res: continue
             device_id = device_res[0]
 
-            # Reconstruct ISO timestamps
-            loan_dt_str = f"{row['Loan Date']} {row['Loan Time']}"
-            loan_time_iso = datetime.strptime(loan_dt_str, "%d/%m/%y %H:%M").isoformat()
+            try:
+                loan_dt_str = f"{row['Loan Date']} {row['Loan Time']}"
+                loan_time_iso = datetime.strptime(loan_dt_str, "%d/%m/%y %H:%M").isoformat()
+            except (ValueError, TypeError):
+                continue
             
             return_time_iso = None
             if pd.notna(row['Return Date']) and str(row['Return Date']) != 'N/A':
-                return_dt_str = f"{row['Return Date']} {row['Return Time']}"
-                return_time_iso = datetime.strptime(return_dt_str, "%d/%m/%y %H:%M").isoformat()
+                try:
+                    return_dt_str = f"{row['Return Date']} {row['Return Time']}"
+                    return_time_iso = datetime.strptime(return_dt_str, "%d/%m/%y %H:%M").isoformat()
+                except (ValueError, TypeError):
+                    return_time_iso = None
 
-            # Insert the loan record
             c.execute(
                 "INSERT INTO loans (student_id, device_id, loan_time, return_time) VALUES (?, ?, ?, ?)",
                 (student_id, device_id, loan_time_iso, return_time_iso)
             )
 
-        # --- 6. Commit the transaction ---
         conn.commit()
-        flash("Database successfully imported from Excel. All previous data has been replaced.", "success")
+        flash("Database successfully imported from CSV. All previous data has been replaced.", "success")
 
-    except (pd.errors.ParserError, ValueError, sqlite3.Error, KeyError) as e:
-        flash(f"Error during Excel import: {e}. The database was not changed.", "error")
+    except Exception as e:
+        flash(f"Error during CSV import: {e}. The database was not changed.", "error")
         if conn:
-            conn.rollback() # Roll back any partial changes if an error occurred
+            conn.rollback()
 
     finally:
         if conn:
-            conn.close() # Always close the connection
+            conn.close()
 
     return redirect(url_for("admin"))
-
+    
 
 if __name__ == "__main__":
     generate_credentials()
@@ -668,3 +672,4 @@ if __name__ == "__main__":
     
     app.run(debug=True)
 # Note: In production, set debug=False and consider using a production server like Gunicorn.
+

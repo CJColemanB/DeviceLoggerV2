@@ -59,7 +59,8 @@
 
                 <!-- Import Form -->
                 <form id="import-form" action="{{ url_for('import_admin_data') }}" method="post" enctype="multipart/form-data">
-                    <input type="file" name="backup_file" id="import-file-input" required accept=".xlsx" class="hidden"/>
+                    <!-- Changed accept attribute to .csv -->
+                    <input type="file" name="backup_file" id="import-file-input" required accept=".csv" class="hidden"/>
                     <label for="import-file-input" class="btn purple w-full cursor-pointer text-center block text-base">
                         Import from Backup
                     </label>
