@@ -40,7 +40,7 @@ def generate_credentials():
     print("Credentials are valid ONLY for this session.")
     print("="*50 + "\n")
 
-# Initialize database
+# Initialize databases
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -466,7 +466,7 @@ def export_admin_data():
         # CSV format: wrap string values in quotes to handle commas
         output.write(f'"{device_full_id}","{category}","{name} {surname}","{email}"\n')
 
-    output.write("\n\n")
+    output.write("\n")
 
 
     # --- 2. ALL DEVICES (Inventory List) ---
@@ -483,7 +483,7 @@ def export_admin_data():
         status = "Loanable" if d[4] == 1 else "Loaned Out"
         output.write(f'{d[0]},"{d[1]}","{d[2]}","{d[3]}","{status}"\n')
 
-    output.write("\n\n")
+    output.write("\n")
 
 
     # --- 3. LOAN HISTORY (All Loans, including returned) ---
