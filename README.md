@@ -38,6 +38,14 @@ A robust, browser-based web application for managing the loan and return of devi
 ### Prerequisites
 
 - **Python 3** installed on your system.
+- **Flask** installed on your system.
+- ***Note***: Installing the prerequisites is easier through a codespaces environment by doing the following:
+   - Open your terminal at the bottom of the page, or pressing cntrl + i
+   - install the libraries:
+     ```bash
+     python3 -m pip install --upgrade pip
+     pip install flask
+     ```
 
 ### 1. Run the Application
 
