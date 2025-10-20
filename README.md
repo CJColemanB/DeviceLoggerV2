@@ -42,8 +42,10 @@ A robust, browser-based web application for managing the loan and return of devi
 - **Flask** installed on your system.
 - **Pandas** installed on your system.
 - **OpenPyXL** installed on your system.
-- ***Note***: Installing the prerequisites is easier through a codespaces environment by doing the following:
-   - Open your terminal at the bottom of the page
+- **Setup your environment** by doing the following:
+   - Install [Python]([url](https://www.python.org/downloads/)) for your device
+   - Install Python3 by typing ```bash python3 ``` into your terminal
+   - Open your terminal or cmd application
    - install the libraries:
      ```bash
      python3 -m pip install --upgrade pip
