@@ -6,7 +6,6 @@
     <title>Admin Panel</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <!-- Link to the new external JavaScript file -->
     <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
 </head>
 <body class="bg-gray-50 p-6 min-h-screen font-sans">
@@ -52,15 +51,20 @@
             <aside class="md:col-span-1 space-y-6">
                 <h2 class="text-xl font-semibold text-gray-800 border-b pb-3">Management Actions</h2>
                 
-                <!-- Export Button -->
+                <!-- Export Excel Button -->
                 <a href="{{ url_for('export_admin_data') }}" target="_blank" class="block">
-                    <button class="btn blue w-full text-base" type="button">Export All Data</button>
+                    <button class="btn blue w-full text-base" type="button">Export as Excel Spreadsheet</button>
+                </a>
+
+                <!-- Export Database Button -->
+                <a href="{{ url_for('export_db') }}" target="_blank" class="block">
+                    <button class="btn blue w-full text-base" type="button">Export as Database</button>
                 </a>
 
                 <!-- Import Form -->
                 <form id="import-form" action="{{ url_for('import_admin_data') }}" method="post" enctype="multipart/form-data">
-                    <!-- Changed accept attribute to .csv -->
-                    <input type="file" name="backup_file" id="import-file-input" required accept=".csv" class="hidden"/>
+                    <!-- Changed accept attribute to .db -->
+                    <input type="file" name="backup_file" id="import-file-input" required accept=".db" class="hidden"/>
                     <label for="import-file-input" class="btn purple w-full cursor-pointer text-center block text-base">
                         Import from Backup
                     </label>
@@ -105,7 +109,7 @@
             <hr class="my-8">
             <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Devices Currently On Loan</h2>
             <div class="overflow-x-auto shadow-md rounded-lg mb-8">
-                 <table>
+                <table>
                     <thead>
                         <tr>
                             <th>Device ID</th>
@@ -125,7 +129,6 @@
                             <td>
                                 <form method="post" style="display:inline;">
                                     <input type="hidden" name="active_return_id" value="{{ d_loan[0] }}">
-                                    <!-- Removed onclick confirm to use JS file instead -->
                                     <button class="btn green text-sm" type="submit" onclick="return confirm('Confirm return for device {{ d_loan[0] }}?')">Mark as Handed In</button>
                                 </form>
                             </td>
@@ -164,7 +167,6 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <!-- Added class and removed onclick to use JS file instead -->
                                 <form method="post" style="display:inline;" class="delete-form">
                                     <input type="hidden" name="delete_id" value="{{ d[0] }}">
                                     <button class="btn red text-sm" type="submit">Delete</button>
@@ -221,7 +223,5 @@
         </div>
     </div>
 
-    <!-- Removed inline script block -->
 </body>
 </html>
-
