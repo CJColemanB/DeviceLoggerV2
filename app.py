@@ -37,7 +37,8 @@ def init_db():
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS devices (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, rubric_id TEXT, suffix_id TEXT,
-                    category TEXT, available INTEGER)''')
+                    category TEXT, available INTEGER,
+                    UNIQUE(rubric_id, suffix_id))''')
     c.execute('''CREATE TABLE IF NOT EXISTS students (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, surname TEXT, email TEXT UNIQUE)''')
     c.execute('''CREATE TABLE IF NOT EXISTS loans (
@@ -103,6 +104,13 @@ def loan():
     if request.method == "POST":
         name, surname, email = request.form.get("name"), request.form.get("surname"), request.form.get("email")
         device_id = request.form.get("selected_device_id")
+
+        # --- DATA INTEGRITY CHECK FOR EMAIL ---
+        if not email or not email.lower().endswith("@schs.gdst.net"):
+            flash("Invalid email address. Please use a valid '@schs.gdst.net' email.", "error")
+            conn.close()
+            return redirect(url_for("loan"))
+        
         if not device_id:
             flash("Please select a device before attempting to loan.", "error")
             conn.close()
@@ -147,31 +155,62 @@ def return_device():
     conn = get_db_connection()
     c = conn.cursor()
     if request.method == "POST":
-        student_id, device_id = request.form.get("student"), request.form.get("device")
+        loan_id = request.form.get("loan_id")
+        category_filter = request.form.get('category_filter') # Read filter from hidden form field
         try:
-            return_time = datetime.now().isoformat()
-            c.execute("UPDATE loans SET return_time = ? WHERE student_id = ? AND device_id = ? AND return_time IS NULL", 
-                        (return_time, student_id, device_id))
-            if c.rowcount == 0:
-                flash("Error: Could not find an active loan for this student/device combination.", "error")
+            c.execute("SELECT device_id FROM loans WHERE id = ?", (loan_id,))
+            loan_info = c.fetchone()
+            if not loan_info:
+                flash("Error: Could not find the specified loan.", "error")
                 conn.rollback()
             else:
+                device_id = loan_info[0]
+                return_time = datetime.now().isoformat()
+                c.execute("UPDATE loans SET return_time = ? WHERE id = ?", (return_time, loan_id))
                 c.execute("UPDATE devices SET available = 1 WHERE id = ?", (device_id,))
                 conn.commit()
-                flash(f"Device ID {device_id} returned successfully!", "success")
+                flash(f"Device returned successfully!", "success")
         except sqlite3.Error as e:
             flash(f"Database Error: {e}", "error")
             conn.rollback()
         finally:
             conn.close()
+
+        if category_filter:
+            return redirect(url_for("return_device", category=category_filter))
         return redirect(url_for("return_device"))
     else:
-        c.execute("SELECT DISTINCT s.id, s.name || ' ' || s.surname FROM students s JOIN loans l ON s.id = l.student_id WHERE l.return_time IS NULL")
-        students_with_active_loans = c.fetchall()
-        c.execute("SELECT d.id, d.rubric_id || '-' || d.suffix_id || ' (' || d.category || ')' FROM devices d WHERE d.available = 0")
-        devices_on_loan = c.fetchall()
+        category_filter = request.args.get('category', None)
+        query = """
+            SELECT l.id, d.rubric_id, d.suffix_id, s.name, s.surname, d.category
+            FROM loans l
+            JOIN devices d ON l.device_id = d.id
+            JOIN students s ON l.student_id = s.id
+            WHERE l.return_time IS NULL
+        """
+        params = []
+        if category_filter:
+            query += " AND d.category = ?"
+            params.append(category_filter)
+
+        query += " ORDER BY s.surname, s.name"
+        c.execute(query, tuple(params))
+        active_loans = c.fetchall()
+        c.execute("""
+            SELECT DISTINCT d.category
+            FROM devices d
+            JOIN loans l ON d.id = l.device_id
+            WHERE l.return_time IS NULL
+            ORDER BY d.category
+        """)
+        loaned_categories = [row[0] for row in c.fetchall()]
+
         conn.close()
-        return render_template("return.html", students=students_with_active_loans, devices=devices_on_loan)
+        return render_template("return.html", 
+                               active_loans=active_loans, 
+                               categories=loaned_categories, 
+                               active_category=category_filter)
+
 
 @app.route("/admin", methods=["GET", "POST"])
 @login_required
@@ -180,7 +219,6 @@ def admin():
     c = conn.cursor()
     if request.method == "POST":
         action_handled = False
-        # Handle Active Device Return
         if "active_return_id" in request.form:
             active_return_id_full = request.form.get("active_return_id")
             try:
@@ -203,7 +241,6 @@ def admin():
                 conn.rollback()
             action_handled = True
         
-        # Handle Device Deletion
         if "delete_id" in request.form:
             delete_id = request.form.get("delete_id")
             try:
@@ -220,80 +257,76 @@ def admin():
                 conn.rollback()
             action_handled = True
 
-        # Handle Device Addition
         if "rubric_id" in request.form and not action_handled:
             rubric_id, suffix_id, category = request.form.get("rubric_id"), request.form.get("suffix_id"), request.form.get("category")
             if rubric_id and suffix_id and category:
-                try:
-                    c.execute("INSERT INTO devices (rubric_id, suffix_id, category, available) VALUES (?, ?, ?, 1)", 
-                                (rubric_id, suffix_id, category))
-                    conn.commit()
-                    flash("Device added successfully!", "success")
-                except sqlite3.Error as e:
-                    flash(f"Error adding device: {e}", "error")
-                    conn.rollback()
+                c.execute("SELECT id FROM devices WHERE rubric_id = ? AND suffix_id = ?", (rubric_id, suffix_id))
+                if c.fetchone():
+                    flash(f"Error: A device with the ID '{rubric_id}-{suffix_id}' already exists.", "error")
+                else:
+                    try:
+                        c.execute("INSERT INTO devices (rubric_id, suffix_id, category, available) VALUES (?, ?, ?, 1)", (rubric_id, suffix_id, category))
+                        conn.commit()
+                        flash("Device added successfully!", "success")
+                    except sqlite3.Error as e:
+                        conn.rollback()
+                        flash(f"Error adding device: {e}", "error")
         
         conn.close()
         return redirect(url_for("admin"))
     else:
-        # GET request
-        c.execute("SELECT * FROM devices ORDER BY id DESC")
+        sort_by = request.args.get('sort_by', 'id') 
+        sort_dir = request.args.get('sort_dir', 'desc')
+        if sort_dir.lower() not in ['asc', 'desc']: sort_dir = 'desc'
+
+        inventory_sort_cols = {'id': 'id', 'rubric_id': 'rubric_id', 'suffix_id': 'suffix_id', 'category': 'category', 'available': 'available'}
+        on_loan_sort_cols = {'device_id_loan': 'd.rubric_id', 'category_loan': 'd.category', 'student_name_loan': 's.surname', 'student_email_loan': 's.email'}
+        history_sort_cols = {'student_name_history': 's.surname', 'device_id_history': 'd.rubric_id', 'loan_time_history': 'l.loan_time', 'return_time_history': 'l.return_time', 'status_history': 'l.return_time IS NULL'}
+
+        inventory_order_by, on_loan_order_by, history_order_by = "ORDER BY id DESC", "ORDER BY d.category, s.surname", "ORDER BY l.loan_time DESC"
+
+        if sort_by in inventory_sort_cols:
+            inventory_order_by = f"ORDER BY {inventory_sort_cols[sort_by]} {sort_dir.upper()}"
+        elif sort_by in on_loan_sort_cols:
+            sql_col = on_loan_sort_cols[sort_by]
+            if sort_by == 'student_name_loan': on_loan_order_by = f"ORDER BY s.surname {sort_dir.upper()}, s.name {sort_dir.upper()}"
+            elif sort_by == 'device_id_loan': on_loan_order_by = f"ORDER BY d.rubric_id {sort_dir.upper()}, d.suffix_id {sort_dir.upper()}"
+            else: on_loan_order_by = f"ORDER BY {sql_col} {sort_dir.upper()}"
+        elif sort_by in history_sort_cols:
+            sql_col = history_sort_cols[sort_by]
+            if sort_by == 'student_name_history': history_order_by = f"ORDER BY s.surname {sort_dir.upper()}, s.name {sort_dir.upper()}"
+            elif sort_by == 'device_id_history': history_order_by = f"ORDER BY d.rubric_id {sort_dir.upper()}, d.suffix_id {sort_dir.upper()}"
+            else: history_order_by = f"ORDER BY {sql_col} {sort_dir.upper()}"
+
+        c.execute(f"SELECT * FROM devices {inventory_order_by}")
         devices_raw = c.fetchall()
-        c.execute("""
-            SELECT s.name, s.surname, d.rubric_id, d.suffix_id, l.loan_time, l.return_time
-            FROM loans l JOIN students s ON l.student_id = s.id JOIN devices d ON l.device_id = d.id
-            ORDER BY l.loan_time DESC
-        """)
-        loan_records = c.fetchall()
-        formatted_loans = [{
-            'student_name': f"{rec[0]} {rec[1]}", 'device_id': f"{rec[2]}-{rec[3]}",
-            'loan_date': format_dt(rec[4])[0], 'loan_time': format_dt(rec[4])[1],
-            'return_date': format_dt(rec[5])[0], 'return_time': format_dt(rec[5])[1],
-            'status': "Returned" if rec[5] else "On Loan"
-        } for rec in loan_records]
         
-        c.execute("""
-            SELECT d.rubric_id, d.suffix_id, d.category, s.name, s.surname, s.email
-            FROM devices d JOIN loans l ON d.id = l.device_id JOIN students s ON l.student_id = s.id
-            WHERE d.available = 0 AND l.return_time IS NULL ORDER BY d.category, s.surname
-        """)
+        c.execute(f"SELECT s.name, s.surname, d.rubric_id, d.suffix_id, l.loan_time, l.return_time FROM loans l JOIN students s ON l.student_id = s.id JOIN devices d ON l.device_id = d.id {history_order_by}")
+        loan_records = c.fetchall()
+        
+        c.execute(f"SELECT d.rubric_id, d.suffix_id, d.category, s.name, s.surname, s.email FROM devices d JOIN loans l ON d.id = l.device_id JOIN students s ON l.student_id = s.id WHERE d.available = 0 AND l.return_time IS NULL {on_loan_order_by}")
         devices_on_loan_list = c.fetchall()
-        devices_on_loan_formatted = [[f"{rec[0]}-{rec[1]}", rec[2], rec[3], rec[4], rec[5]] for rec in devices_on_loan_list]
+        
+        formatted_loans = [{'student_name': f"{r[0]} {r[1]}", 'device_id': f"{r[2]}-{r[3]}", 'loan_date': format_dt(r[4])[0], 'loan_time': format_dt(r[4])[1], 'return_date': format_dt(r[5])[0], 'return_time': format_dt(r[5])[1], 'status': "Returned" if r[5] else "On Loan"} for r in loan_records]
+        devices_on_loan_formatted = [[f"{r[0]}-{r[1]}", r[2], r[3], r[4], r[5]] for r in devices_on_loan_list]
         
         conn.close()
-        return render_template("admin.html", devices=devices_raw, loans=formatted_loans, devices_on_loan=devices_on_loan_formatted)
+        return render_template("admin.html", devices=devices_raw, loans=formatted_loans, devices_on_loan=devices_on_loan_formatted, sort_by=sort_by, sort_dir=sort_dir)
 
 @app.route("/export_admin_data")
 @login_required
 def export_admin_data():
-    """Exports data as an Excel (.xlsx) file with three sheets."""
     conn = get_db_connection()
     output = io.BytesIO()
     try:
-        # Fetch data for all three sheets
-        df_on_loan = pd.read_sql_query("""
-            SELECT d.rubric_id || '-' || d.suffix_id AS 'Device ID', d.category AS 'Category', 
-                   s.name || ' ' || s.surname AS 'Student Name', s.email AS 'Student Email'
-            FROM devices d JOIN loans l ON d.id = l.device_id JOIN students s ON l.student_id = s.id
-            WHERE d.available = 0 AND l.return_time IS NULL ORDER BY d.category, s.surname
-        """, conn)
-        df_inventory = pd.read_sql_query("""
-            SELECT id AS 'Database ID', rubric_id AS 'Rubric ID', suffix_id AS 'Suffix ID', category AS 'Category',
-                   CASE WHEN available = 1 THEN 'Loanable' ELSE 'Loaned Out' END AS 'Status'
-            FROM devices ORDER BY id DESC
-        """, conn)
-        df_history = pd.read_sql_query("""
-            SELECT s.name || ' ' || s.surname AS 'Student Name', d.rubric_id || '-' || d.suffix_id AS 'Device ID', d.category,
-                   l.loan_time, l.return_time
-            FROM loans l JOIN students s ON l.student_id = s.id JOIN devices d ON l.device_id = d.id
-            ORDER BY l.loan_time DESC
-        """, conn)
+        df_on_loan = pd.read_sql_query("SELECT d.rubric_id || '-' || d.suffix_id AS 'Device ID', d.category AS 'Category', s.name || ' ' || s.surname AS 'Student Name', s.email AS 'Student Email' FROM devices d JOIN loans l ON d.id = l.device_id JOIN students s ON l.student_id = s.id WHERE d.available = 0 AND l.return_time IS NULL ORDER BY d.category, s.surname", conn)
+        df_inventory = pd.read_sql_query("SELECT id AS 'Database ID', rubric_id AS 'Rubric ID', suffix_id AS 'Suffix ID', category AS 'Category', CASE WHEN available = 1 THEN 'Loanable' ELSE 'Loaned Out' END AS 'Status' FROM devices ORDER BY id DESC", conn)
+        df_history = pd.read_sql_query("SELECT s.name || ' ' || s.surname AS 'Student Name', d.rubric_id || '-' || d.suffix_id AS 'Device ID', d.category, l.loan_time, l.return_time FROM loans l JOIN students s ON l.student_id = s.id JOIN devices d ON l.device_id = d.id ORDER BY l.loan_time DESC", conn)
 
-        # Format dates in history DataFrame
         df_history[['Loan Date', 'Loan Time']] = df_history['loan_time'].apply(lambda x: pd.Series(format_dt(x)))
         df_history[['Return Date', 'Return Time']] = df_history['return_time'].apply(lambda x: pd.Series(format_dt(x)))
         df_history['Status'] = df_history['return_time'].apply(lambda x: 'Returned' if x else 'On Loan')
-        df_history = df_history.drop(columns=['loan_time', 'return_time'])
+        df_history.drop(columns=['loan_time', 'return_time'], inplace=True)
 
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             df_on_loan.to_excel(writer, sheet_name='Devices On Loan', index=False)
@@ -313,7 +346,6 @@ def export_admin_data():
 @app.route("/export_db")
 @login_required
 def export_db():
-    """Exports the entire SQLite database file."""
     try:
         filename = f"DeviceLoanBackup_{datetime.now().strftime('%d%m%Y')}.db"
         return send_file(DB_FILE, as_attachment=True, download_name=filename, mimetype='application/x-sqlite3')
@@ -324,7 +356,6 @@ def export_db():
 @app.route("/import_admin_data", methods=["POST"])
 @login_required
 def import_admin_data():
-    """Handles the upload of a .db backup file to overwrite the current database."""
     if 'backup_file' not in request.files or not request.files['backup_file'].filename:
         flash("No file selected for import.", "error")
         return redirect(url_for("admin"))

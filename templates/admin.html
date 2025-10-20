@@ -24,7 +24,6 @@
 
     <div class="max-w-7xl mx-auto bg-white p-8 rounded-xl shadow-2xl">
 
-        <!-- 1. Standalone Title Section -->
         <div class="text-center mb-10 border-b pb-4">
             <h1 class="text-4xl font-extrabold text-gray-900">Device Management Admin Panel</h1>
         </div>
@@ -44,33 +43,27 @@
           {% endif %}
         {% endwith %}
 
-        <!-- 2. Main Content Grid -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
 
             <!-- Left Column: Actions -->
             <aside class="md:col-span-1 space-y-6">
                 <h2 class="text-xl font-semibold text-gray-800 border-b pb-3">Management Actions</h2>
                 
-                <!-- Export Excel Button -->
-                <a href="{{ url_for('export_admin_data') }}" target="_blank" class="block">
-                    <button class="btn blue w-full text-base" type="button">Export as Excel Spreadsheet</button>
+                <a href="{{ url_for('export_admin_data') }}" class="block">
+                    <button class="btn blue w-full text-base" type="button">Export as Excel</button>
                 </a>
 
-                <!-- Export Database Button -->
-                <a href="{{ url_for('export_db') }}" target="_blank" class="block">
+                <a href="{{ url_for('export_db') }}" class="block">
                     <button class="btn blue w-full text-base" type="button">Export as Database</button>
                 </a>
 
-                <!-- Import Form -->
                 <form id="import-form" action="{{ url_for('import_admin_data') }}" method="post" enctype="multipart/form-data">
-                    <!-- Changed accept attribute to .db -->
                     <input type="file" name="backup_file" id="import-file-input" required accept=".db" class="hidden"/>
                     <label for="import-file-input" class="btn purple w-full cursor-pointer text-center block text-base">
                         Import from Backup
                     </label>
                 </form>
                 
-                <!-- Logout Button (Moved) -->
                 <form action="{{ url_for('logout') }}" method="get" class="block">
                     <button class="btn red w-full text-base" type="submit">Logout</button>
                 </form>
@@ -112,10 +105,10 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Device ID</th>
-                            <th>Category</th>
-                            <th>Student Name</th>
-                            <th>Student Email</th>
+                            <th><a href="{{ url_for('admin', sort_by='device_id_loan', sort_dir='asc' if sort_by == 'device_id_loan' and sort_dir == 'desc' else 'desc') }}">Device ID {% if sort_by == 'device_id_loan' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin', sort_by='category_loan', sort_dir='asc' if sort_by == 'category_loan' and sort_dir == 'desc' else 'desc') }}">Category {% if sort_by == 'category_loan' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin', sort_by='student_name_loan', sort_dir='asc' if sort_by == 'student_name_loan' and sort_dir == 'desc' else 'desc') }}">Student Name {% if sort_by == 'student_name_loan' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin', sort_by='student_email_loan', sort_dir='asc' if sort_by == 'student_email_loan' and sort_dir == 'desc' else 'desc') }}">Student Email {% if sort_by == 'student_email_loan' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -144,11 +137,11 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>DB ID</th>
-                            <th>Rubric ID</th>
-                            <th>Suffix ID</th>
-                            <th>Category</th>
-                            <th>Status</th>
+                            <th><a href="{{ url_for('admin', sort_by='id', sort_dir='asc' if sort_by == 'id' and sort_dir == 'desc' else 'desc') }}">DB ID {% if sort_by == 'id' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin', sort_by='rubric_id', sort_dir='asc' if sort_by == 'rubric_id' and sort_dir == 'desc' else 'desc') }}">Rubric ID {% if sort_by == 'rubric_id' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin', sort_by='suffix_id', sort_dir='asc' if sort_by == 'suffix_id' and sort_dir == 'desc' else 'desc') }}">Suffix ID {% if sort_by == 'suffix_id' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin', sort_by='category', sort_dir='asc' if sort_by == 'category' and sort_dir == 'desc' else 'desc') }}">Category {% if sort_by == 'category' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin', sort_by='available', sort_dir='asc' if sort_by == 'available' and sort_dir == 'desc' else 'desc') }}">Status {% if sort_by == 'available' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -184,13 +177,13 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Student Name</th>
-                            <th>Device ID</th>
-                            <th>Loan Date</th>
+                            <th><a href="{{ url_for('admin', sort_by='student_name_history', sort_dir='asc' if sort_by == 'student_name_history' and sort_dir == 'desc' else 'desc') }}">Student Name {% if sort_by == 'student_name_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin', sort_by='device_id_history', sort_dir='asc' if sort_by == 'device_id_history' and sort_dir == 'desc' else 'desc') }}">Device ID {% if sort_by == 'device_id_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th><a href="{{ url_for('admin', sort_by='loan_time_history', sort_dir='asc' if sort_by == 'loan_time_history' and sort_dir == 'desc' else 'desc') }}">Loan Date {% if sort_by == 'loan_time_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                             <th>Loan Time</th>
-                            <th>Return Date</th>
+                            <th><a href="{{ url_for('admin', sort_by='return_time_history', sort_dir='asc' if sort_by == 'return_time_history' and sort_dir == 'desc' else 'desc') }}">Return Date {% if sort_by == 'return_time_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                             <th>Return Time</th>
-                            <th>Status</th>
+                            <th><a href="{{ url_for('admin', sort_by='status_history', sort_dir='asc' if sort_by == 'status_history' and sort_dir == 'desc' else 'desc') }}">Status {% if sort_by == 'status_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -222,6 +215,6 @@
             </a>
         </div>
     </div>
-
 </body>
 </html>
+

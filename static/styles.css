@@ -105,6 +105,14 @@ th {
     letter-spacing: 0.05em;
 }
 
+th a {
+    color: white;
+    text-decoration: none;
+}
+th a:hover {
+    text-decoration: underline;
+}
+
 tr:hover:not(.selected-row) {
     background-color: #f7f7f7;
 }
@@ -133,4 +141,6 @@ tr:hover:not(.selected-row) {
     font-weight: bold;
     color: #1e3a8a;
 }
-
+.selected-row:hover {
+    background-color: #bfdbfe !important;
+}
