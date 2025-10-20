@@ -60,7 +60,7 @@ A robust, browser-based web application for managing the loan and return of devi
 2. Open your terminal or command prompt in that directory.
 3. Start the application:
    ```bash
-   python app.py
+   python3 app.py
    ```
 
 ### 2. Admin Access Credentials
