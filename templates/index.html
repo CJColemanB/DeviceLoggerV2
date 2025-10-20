@@ -1,15 +1,14 @@
 <!DOCTYPE html>
-
 <html>
 <head>
-<!-- Load Tailwind CSS for modern styling -->
-<script src="https://www.google.com/search?q=https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-<title>Device Loan System</title>
+    <!-- Corrected Tailwind CSS script tag -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <title>Device Loan System</title>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen font-sans">
-<div class="max-w-md w-full p-8 bg-white rounded-xl shadow-2xl text-center">
-<h1 class="text-4xl font-extrabold text-gray-900 mb-6">Device Loan System</h1>
+<div class="max-w-xl w-full p-8 bg-white rounded-xl shadow-2xl text-center">
+    <h1 class="text-4xl font-extrabold text-gray-900 mb-8">Device Loan System</h1>
 
     <!-- Flash Messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -26,15 +25,16 @@
         {% endif %}
     {% endwith %}
 
-    <div class="button-container flex flex-col space-y-4">
+    <!-- Centered and larger buttons, responsive layout -->
+    <div class="flex flex-col sm:flex-row justify-center items-center gap-6 mt-6">
         <a href="{{ url_for('loan') }}">
-            <button class="btn blue w-full">Loan a Device</button>
+            <button class="btn blue home-btn">Loan a Device</button>
         </a>
         <a href="{{ url_for('return_device') }}">
-            <button class="btn green w-full">Return a Device</button>
+            <button class="btn green home-btn">Return a Device</button>
         </a>
         <a href="{{ url_for('admin') }}">
-            <button class="btn red w-full">Admin Panel</button>
+            <button class="btn red home-btn">Admin Panel</button>
         </a>
     </div>
 </div>
