@@ -67,7 +67,9 @@ A robust, browser-based web application for managing the loan and return of devi
 1. From the repository page, click "code", then "local", then "download ZIP"
 2. Unzip the package
 3. Open your terminal, then direct to the unzipped package's directory, for example
-    ``` cd C:\Users\[user]\Downloads\DeviceLoggerV2\DeviceLoggerV2 ```
+    ```bash
+    cd C:\Users\[user]\Downloads\DeviceLoggerV2\DeviceLoggerV2
+    ```
 5. start the application:
    ```bash
    python3 app.py
