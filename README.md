@@ -54,7 +54,7 @@ A robust, browser-based web application for managing the loan and return of devi
      pip install openpyxl
      ```
 
-### 1. Run the Application
+### 1.1 Runming the Application via GitHub Codespaces
 
 1. Ensure all files are in the same directory.
 2. Open your terminal or command prompt in that directory.
@@ -62,7 +62,15 @@ A robust, browser-based web application for managing the loan and return of devi
    ```bash
    python3 app.py
    ```
+#### 1.2: Running the Application Locally
 
+1. From the repository page, click "code", then "local", then "download ZIP"
+2. Unzip the package
+3. Open your terminal, then direct to the unzipped package's directory, for example ``` cd C:\Users\[user]\Downloads\DeviceLoggerV2\DeviceLoggerV2 ```
+4. start the appmication:
+   ```bash
+   python3 app.py
+   ```
 ### 2. Admin Access Credentials
 
 - Upon starting `app.py`, unique admin credentials (username and password) are generated and displayed in the terminal:
