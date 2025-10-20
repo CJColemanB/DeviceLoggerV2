@@ -23,7 +23,7 @@ A robust, browser-based web application for managing the loan and return of devi
 | `templates/`       | HTML templates for all pages.                                                |
 | &nbsp;&nbsp;├── `index.html`   | Home/landing page.                              |
 | &nbsp;&nbsp;├── `loan.html`    | Device loan form and selection.                  |
-| &nbsp;&nbsp;├── `return.html`  | Return devices (dropdown selection).             |
+| &nbsp;&nbsp;├── `return.html`  | Return devices, now uses cards instead of a dropdown for ease of viewing for users.             |
 | &nbsp;&nbsp;├── `login.html`   | Admin login page.                               |
 | &nbsp;&nbsp;└── `admin.html`   | Admin dashboard with inventory/history.          |
 | `static/`          | Static assets (CSS, JS).                                                    |
@@ -40,7 +40,7 @@ A robust, browser-based web application for managing the loan and return of devi
 - **Python 3** installed on your system.
 - **Flask** installed on your system.
 - ***Note***: Installing the prerequisites is easier through a codespaces environment by doing the following:
-   - Open your terminal at the bottom of the page, or pressing cntrl + i
+   - Open your terminal at the bottom of the page
    - install the libraries:
      ```bash
      python3 -m pip install --upgrade pip
