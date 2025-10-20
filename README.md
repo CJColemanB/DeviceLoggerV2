@@ -44,7 +44,7 @@ A robust, browser-based web application for managing the loan and return of devi
 - **OpenPyXL** installed on your system.
 - **Setup your environment** by doing the following:
    - Install [Python]([url](https://www.python.org/downloads/)) for your device
-   - Install Python3 by typing ```bash python3 ``` into your terminal
+   - Install Python3 by typing ```python3``` into your terminal
    - Open your terminal or cmd application
    - install the libraries:
      ```bash
