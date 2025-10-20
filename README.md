@@ -11,6 +11,7 @@ A robust, browser-based web application for managing the loan and return of devi
 - **Secure Admin Panel:** Access a protected dashboard to add/remove devices, and view both active and historical loan data.
 - **Automated Timestamping:** All loans and returns are accurately recorded with date (`DD/MM/YY`) and time (`HH:MM`) stamps.
 - **One-Click Returns:** Admins can mark devices as returned directly from the active loan list.
+- **Simple Exporting Tools:** Admins can easily export and import the database used, as well as export as an xlsx file, allowing for easy viewing of data
 
 ---
 
