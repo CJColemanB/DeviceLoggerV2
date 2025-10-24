@@ -54,7 +54,7 @@ A robust, browser-based web application for managing the loan and return of devi
      pip install openpyxl
      ```
 
-### 1.1 Runming the Application via GitHub Codespaces
+### 1.1 Running the Application via GitHub Codespaces
 
 1. Ensure all files are in the same directory.
 2. Open your terminal or command prompt in that directory.
