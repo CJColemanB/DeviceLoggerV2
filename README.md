@@ -94,6 +94,9 @@ A robust, browser-based web application for managing the loan and return of devi
   - Fill student details (Name, Surname, Email).
   - Filter available devices by category.
   - Select a device and click "Loan Device".
+- **Return Device Page (`/return`):**
+  - Users can select from all of the devices currently on loan, and select one to return.
+  - all data regarding actually returning the device is hidden from the user and done via the admin side, which administrators can see via the Admin Panel.
 - **Admin Panel (`/admin`):**
   - Log in with generated credentials.
   - Add new devices (category, rubric, suffix).
