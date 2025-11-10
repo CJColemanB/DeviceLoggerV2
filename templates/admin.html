@@ -10,7 +10,6 @@
 </head>
 <body class="bg-gray-50 p-6 min-h-screen font-sans">
 
-    <!-- Confirmation Modal for Import -->
     <div id="import-modal" class="fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50 hidden">
         <div class="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">Confirm Import</h2>
@@ -28,7 +27,6 @@
             <h1 class="text-4xl font-extrabold text-gray-900">Device Management Admin Panel</h1>
         </div>
 
-        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
@@ -45,7 +43,6 @@
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
 
-            <!-- Left Column: Actions -->
             <aside class="md:col-span-1 space-y-6">
                 <h2 class="text-xl font-semibold text-gray-800 border-b pb-3">Management Actions</h2>
                 
@@ -69,7 +66,6 @@
                 </form>
             </aside>
 
-            <!-- Right Column: Add Device Form -->
             <main class="md:col-span-3 bg-gray-50 p-6 rounded-lg shadow-inner">
                 <h2 class="text-2xl font-semibold text-gray-800 text-center mb-6">Add New Device</h2>
                 <form method="post" action="{{ url_for('admin') }}" class="space-y-4">
@@ -97,7 +93,6 @@
             </main>
         </div>
 
-        <!-- Tables Section -->
         <div class="mt-12">
             <hr class="my-8">
             <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Devices Currently On Loan</h2>
@@ -119,13 +114,20 @@
                             <td>{{ d_loan[1] }}</td>
                             <td>{{ d_loan[2] }} {{ d_loan[3] }}</td>
                             <td>{{ d_loan[4] }}</td>
-                            <td>
-                                <form method="post" style="display:inline;">
+                            
+                            <td class="whitespace-nowrap">
+                                <form method="post" style="display:inline-block; margin-right: 8px; vertical-align: top;">
                                     <input type="hidden" name="active_return_id" value="{{ d_loan[0] }}">
                                     <button class="btn green text-sm" type="submit" onclick="return confirm('Confirm return for device {{ d_loan[0] }}?')">Mark as Handed In</button>
                                 </form>
+                                
+                                <a href="mailto:{{ d_loan[4] }}?subject=Device Loan Reminder: {{ d_loan[0] }}&body=Hi {{ d_loan[2] }},%0D%0A%0D%0AThis is a friendly reminder that you have the following device on loan:%0D%0A%0D%0A- Device: {{ d_loan[1] }}%0D%0A- ID: {{ d_loan[0] }}%0D%0A%0D%0APlease remember to return it when you are finished.%0D%0A%0D%0AThanks!"
+                                   class="btn blue text-sm"
+                                   style="display: inline-block; text-decoration: none; vertical-align: top;">
+                                   Remind
+                                </a>
                             </td>
-                        </tr>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -217,4 +219,3 @@
     </div>
 </body>
 </html>
-
