@@ -102,6 +102,7 @@ A robust, browser-based web application for managing the loan and return of devi
   - Add new devices (category, rubric, suffix).
   - View active loans and mark devices as returned.
   - Review full loan history with timestamps.
+  - (NEW!!!) Added semi-automatic emailing service, allowing administrators to automatically send emails via outlook to users who need to return devices.
 
 ---
 
@@ -123,7 +124,7 @@ When "Mark as Handed In" is clicked in the Admin Panel, `app.py` processes the d
 
 ## 📄 License
 
-This project is provided for educational and internal organizational use. For commercial deployment or redistribution, please review licensing requirements.
+This project is provided for educational and internal organizational use. For commercial deployment or redistribution, please review licensing requirements, or contact me at cjcolemanbenjamin@gmail.com for further instructions/guidance.
 
 ---
 
