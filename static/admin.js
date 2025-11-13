@@ -38,6 +38,9 @@ document.addEventListener('DOMContentLoaded', () => {
             'Charger': 'SHC-LP-',
             'iPad': 'SHC-IQ-',
             'Headphones': 'SHC-HP-',
+            'Trips': 'SHC-TRIPS-',
+            'iPad Charger': 'SHC-IPC-',
+            'USBC Charger': 'SHC-UBC-',
             'Other': 'SHC-'
         };
 
