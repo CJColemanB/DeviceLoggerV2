@@ -102,6 +102,7 @@ A robust, browser-based web application for managing the loan and return of devi
   - Add new devices (category, rubric, suffix).
   - View active loans and mark devices as returned.
   - Review full loan history with timestamps.
+  - (NEW!!!) Added semi-automatic emailing service, allowing administrators to automatically send emails via outlook to users who need to return devices.
 
 ---
 
