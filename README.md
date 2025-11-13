@@ -124,7 +124,7 @@ When "Mark as Handed In" is clicked in the Admin Panel, `app.py` processes the d
 
 ## 📄 License
 
-This project is provided for educational and internal organizational use. For commercial deployment or redistribution, please review licensing requirements.
+This project is provided for educational and internal organizational use. For commercial deployment or redistribution, please review licensing requirements, or contact me at cjcolemanbenjamin@gmail.com for further instructions/guidance.
 
 ---
 
