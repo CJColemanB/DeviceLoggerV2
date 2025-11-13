@@ -106,8 +106,8 @@ def loan():
         device_id = request.form.get("selected_device_id")
 
         # --- DATA INTEGRITY CHECK FOR EMAIL ---
-        if not email or not email.lower().endswith("@schs.gdst.net"):
-            flash("Invalid email address. Please use a valid '@schs.gdst.net' email.", "error")
+        if not email or not email.lower().endswith("gdst.net"):
+            flash("Invalid email address. Please use a valid GDST email.", "error")
             conn.close()
             return redirect(url_for("loan"))
         
