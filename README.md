@@ -12,7 +12,7 @@ A robust, browser-based web application for managing the loan and return of devi
 - **Automated Timestamping:** All loans and returns are accurately recorded with date (`DD/MM/YY`) and time (`HH:MM`) stamps.
 - **One-Click Returns:** Admins can mark devices as returned directly from the active loan list.
 - **Simple Exporting Tools:** Admins can easily export and import the database used, as well as export as an xlsx file, allowing for easy viewing of data
-
+- **NEW!!!** Admins can also easily send pre-generated emails to remind users of devices that they've loaned out via an outlook account present on the device.
 ---
 
 ## 📁 File Structure
