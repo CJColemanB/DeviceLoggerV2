@@ -4,9 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com/3.4.1"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
+    <style>
+        /* Styles for the new sorting functionality */
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        th.sortable:hover {
+            background-color: #f3f4f6;
+        }
+        .sort-icon {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-left: 4px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+    </style>
 </head>
 <body class="bg-gray-50 p-6 min-h-screen font-sans">
 
@@ -100,13 +118,13 @@
             <hr class="my-8">
             <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Devices Currently On Loan</h2>
             <div class="overflow-x-auto shadow-md rounded-lg mb-8">
-                <table>
+                <table id="loan-table">
                     <thead>
                         <tr>
-                            <th><a href="{{ url_for('admin', sort_by='device_id_loan', sort_dir='asc' if sort_by == 'device_id_loan' and sort_dir == 'desc' else 'desc') }}">Device ID {% if sort_by == 'device_id_loan' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                            <th><a href="{{ url_for('admin', sort_by='category_loan', sort_dir='asc' if sort_by == 'category_loan' and sort_dir == 'desc' else 'desc') }}">Category {% if sort_by == 'category_loan' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                            <th><a href="{{ url_for('admin', sort_by='student_name_loan', sort_dir='asc' if sort_by == 'student_name_loan' and sort_dir == 'desc' else 'desc') }}">Student Name {% if sort_by == 'student_name_loan' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                            <th><a href="{{ url_for('admin', sort_by='student_email_loan', sort_dir='asc' if sort_by == 'student_email_loan' and sort_dir == 'desc' else 'desc') }}">Student Email {% if sort_by == 'student_email_loan' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th class="sortable" onclick="sortTable('loan-table', 0)">Device ID <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('loan-table', 1)">Category <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('loan-table', 2)">Student Name <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('loan-table', 3)">Student Email <span class="sort-icon">↕</span></th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -117,20 +135,18 @@
                             <td>{{ d_loan[1] }}</td>
                             <td>{{ d_loan[2] }} {{ d_loan[3] }}</td>
                             <td>{{ d_loan[4] }}</td>
-                            
                             <td class="whitespace-nowrap">
                                 <form method="post" style="display:inline-block; margin-right: 8px; vertical-align: top;">
                                     <input type="hidden" name="active_return_id" value="{{ d_loan[0] }}">
                                     <button class="btn green text-sm" type="submit" onclick="return confirm('Confirm return for device {{ d_loan[0] }}?')">Mark as Handed In</button>
                                 </form>
-                                
-                                <a href="mailto:{{ d_loan[4] }}?subject=Device Loan Reminder: {{ d_loan[0] }}&body=Hi {{ d_loan[2] }},%0D%0A%0D%0AThis is a friendly reminder that you have the following device on loan:%0D%0A%0D%0A- Device: {{ d_loan[1] }}%0D%0A- ID: {{ d_loan[0] }}%0D%0A%0D%0APlease remember to return it when you are finished.%0D%0A%0D%0AThanks!"
+                                <a href="mailto:{{ d_loan[4] }}?subject=Device Loan Reminder: {{ d_loan[0] }}&body=Hi {{ d_loan[2] }},%0D%0A%0D%0AThis is a friendly reminder..."
                                    class="btn blue text-sm"
                                    style="display: inline-block; text-decoration: none; vertical-align: top;">
                                    Remind
                                 </a>
                             </td>
-                            </tr>
+                        </tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -139,14 +155,14 @@
             <hr class="my-8">
             <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Current Device Inventory</h2>
             <div class="overflow-x-auto shadow-md rounded-lg">
-                <table>
+                <table id="inventory-table">
                     <thead>
                         <tr>
-                            <th><a href="{{ url_for('admin', sort_by='id', sort_dir='asc' if sort_by == 'id' and sort_dir == 'desc' else 'desc') }}">DB ID {% if sort_by == 'id' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                            <th><a href="{{ url_for('admin', sort_by='rubric_id', sort_dir='asc' if sort_by == 'rubric_id' and sort_dir == 'desc' else 'desc') }}">Rubric ID {% if sort_by == 'rubric_id' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                            <th><a href="{{ url_for('admin', sort_by='suffix_id', sort_dir='asc' if sort_by == 'suffix_id' and sort_dir == 'desc' else 'desc') }}">Suffix ID {% if sort_by == 'suffix_id' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                            <th><a href="{{ url_for('admin', sort_by='category', sort_dir='asc' if sort_by == 'category' and sort_dir == 'desc' else 'desc') }}">Category {% if sort_by == 'category' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                            <th><a href="{{ url_for('admin', sort_by='available', sort_dir='asc' if sort_by == 'available' and sort_dir == 'desc' else 'desc') }}">Status {% if sort_by == 'available' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th class="sortable" onclick="sortTable('inventory-table', 0, 'number')">DB ID <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('inventory-table', 1)">Rubric ID <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('inventory-table', 2)">Suffix ID <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('inventory-table', 3)">Category <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('inventory-table', 4)">Status <span class="sort-icon">↕</span></th>
                             <th>Action</th>
                         </tr>
                     </thead>
@@ -179,16 +195,16 @@
             <hr class="my-8">
             <h2 class="text-2xl font-semibold text-gray-800 mt-8 mb-4">Device Loan History (All Time)</h2>
             <div class="overflow-x-auto shadow-md rounded-lg">
-                <table>
+                <table id="history-table">
                     <thead>
                         <tr>
-                            <th><a href="{{ url_for('admin', sort_by='student_name_history', sort_dir='asc' if sort_by == 'student_name_history' and sort_dir == 'desc' else 'desc') }}">Student Name {% if sort_by == 'student_name_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                            <th><a href="{{ url_for('admin', sort_by='device_id_history', sort_dir='asc' if sort_by == 'device_id_history' and sort_dir == 'desc' else 'desc') }}">Device ID {% if sort_by == 'device_id_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
-                            <th><a href="{{ url_for('admin', sort_by='loan_time_history', sort_dir='asc' if sort_by == 'loan_time_history' and sort_dir == 'desc' else 'desc') }}">Loan Date {% if sort_by == 'loan_time_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th class="sortable" onclick="sortTable('history-table', 0)">Student Name <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('history-table', 1)">Device ID <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('history-table', 2)">Loan Date <span class="sort-icon">↕</span></th>
                             <th>Loan Time</th>
-                            <th><a href="{{ url_for('admin', sort_by='return_time_history', sort_dir='asc' if sort_by == 'return_time_history' and sort_dir == 'desc' else 'desc') }}">Return Date {% if sort_by == 'return_time_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th class="sortable" onclick="sortTable('history-table', 4)">Return Date <span class="sort-icon">↕</span></th>
                             <th>Return Time</th>
-                            <th><a href="{{ url_for('admin', sort_by='status_history', sort_dir='asc' if sort_by == 'status_history' and sort_dir == 'desc' else 'desc') }}">Status {% if sort_by == 'status_history' %}{% if sort_dir == 'asc' %}▲{% else %}▼{% endif %}{% endif %}</a></th>
+                            <th class="sortable" onclick="sortTable('history-table', 6)">Status <span class="sort-icon">↕</span></th>
                         </tr>
                     </thead>
                     <tbody>

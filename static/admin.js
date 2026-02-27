@@ -57,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Logic for Delete Confirmation ---
-    // Note: This replaces the inline `onclick` confirm dialogs
     const deleteForms = document.querySelectorAll('.delete-form');
     deleteForms.forEach(form => {
         form.addEventListener('submit', function(event) {
@@ -71,3 +70,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+// --- Logic for Frontend Sorting (No Page Refresh) ---
+// This is outside DOMContentLoaded so the HTML 'onclick' can find it.
+const sortDirections = {};
+
+/**
+ * Sorts a table based on the column clicked.
+ * @param {string} tableId 
+ * @param {number} colIndex
+ * @param {string} type
+ */
+function sortTable(tableId, colIndex, type = 'string') {
+    const table = document.getElementById(tableId);
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    
+    // Toggle sort direction
+    const sortKey = `${tableId}-${colIndex}`;
+    sortDirections[sortKey] = !sortDirections[sortKey]; 
+    const isAscending = sortDirections[sortKey];
+
+    // Reset all icons in this table's header to the neutral state
+    table.querySelectorAll('.sort-icon').forEach(icon => icon.textContent = '↕');
+    
+    // Update the specific icon for the column being sorted
+    const headerCells = table.querySelectorAll('thead th');
+    const currentIcon = headerCells[colIndex].querySelector('.sort-icon');
+    if (currentIcon) {
+        currentIcon.textContent = isAscending ? '▲' : '▼';
+    }
+
+    // Perform the sort
+    const sortedRows = rows.sort((a, b) => {
+        let valA = a.cells[colIndex].textContent.trim();
+        let valB = b.cells[colIndex].textContent.trim();
+
+        if (type === 'number') {
+            // Convert to numbers for proper numeric sorting (e.g., 10 > 2)
+            const numA = parseFloat(valA.replace(/[^0-9.-]+/g, "")) || 0;
+            const numB = parseFloat(valB.replace(/[^0-9.-]+/g, "")) || 0;
+            return isAscending ? numA - numB : numB - numA;
+        }
+
+        // Standard alphabetical sort
+        return isAscending 
+            ? valA.localeCompare(valB, undefined, {numeric: true, sensitivity: 'base'}) 
+            : valB.localeCompare(valA, undefined, {numeric: true, sensitivity: 'base'});
+    });
+
+    // Re-append the rows in the new order
+    tbody.append(...sortedRows);
+}
