@@ -1,17 +1,15 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <!-- Load Tailwind CSS for modern styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="{{ url_for('static', filename='loan.js') }}" defer></script>
-    <title>Loan Device</title>
+    <title>Loan Devices</title>
 </head>
 <body class="bg-gray-50 p-6 min-h-screen font-sans">
     <div class="max-w-6xl mx-auto bg-white p-8 rounded-xl shadow-2xl">
-        <h1 class="text-4xl font-extrabold text-gray-900 mb-6 border-b pb-4 text-center">Loan a Device</h1>
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-6 border-b pb-4 text-center">Loan Devices</h1>
 
-        <!-- Flash Messages -->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -30,27 +28,23 @@
             <h2 class="text-2xl font-semibold text-gray-800">Student Information</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- First Name -->
                 <div>
                     <label for="name" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                     <input name="name" id="name" placeholder="First Name" required class="input-field w-full">
                 </div>
-                <!-- Surname -->
                 <div>
                     <label for="surname" class="block text-sm font-medium text-gray-700 mb-1">Surname</label>
                     <input name="surname" id="surname" placeholder="Surname" required class="input-field w-full">
                 </div>
             </div>
             
-            <!-- Email (Moved underneath) -->
             <div>
                 <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input name="email" id="email" type="email" placeholder="Student Email" required class="input-field w-full">
             </div>
 
-            <h2 class="text-2xl font-semibold text-gray-800 pt-4">Select Device</h2>
+            <h2 class="text-2xl font-semibold text-gray-800 pt-4">Select Devices <span id="selection-count" class="text-sm font-normal text-gray-500">(0 selected)</span></h2>
             
-            <!-- Filter Buttons -->
             <div class="flex flex-wrap gap-3 mb-4" id="category-filters">
                 <button type="button" class="filter-btn btn blue" data-category="All">Show All ({{ devices | length }})</button>
                 {% for category in categories %}
@@ -58,7 +52,6 @@
                 {% endfor %}
             </div>
 
-            <!-- Available Devices Table -->
             <div class="overflow-x-auto shadow-md rounded-lg">
                 <table id="devices-table">
                     <thead>
@@ -84,10 +77,11 @@
                 </table>
             </div>
             
-            <!-- Hidden Input for Selected Device ID -->
-            <input type="hidden" name="selected_device_id" id="selected_device_id" required>
+            <input type="hidden" name="selected_device_ids" id="selected_device_ids" required>
 
-            <button class="btn green w-full mt-6" type="submit" id="loan-button" disabled>Loan Selected Device</button>
+            <button class="btn green w-full mt-6" type="submit" id="loan-button" disabled>
+                Loan Selected Devices
+            </button>
         </form>
 
         <a href="{{ url_for('index') }}" class="mt-6 inline-block">

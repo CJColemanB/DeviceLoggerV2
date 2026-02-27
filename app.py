@@ -101,21 +101,29 @@ def logout():
 def loan():
     conn = get_db_connection()
     c = conn.cursor()
+    
     if request.method == "POST":
-        name, surname, email = request.form.get("name"), request.form.get("surname"), request.form.get("email")
-        device_id = request.form.get("selected_device_id")
+        name = request.form.get("name")
+        surname = request.form.get("surname")
+        email = request.form.get("email")
+        # Get the comma-separated string from the hidden input
+        device_ids_str = request.form.get("selected_device_ids") 
 
-        # --- DATA INTEGRITY CHECK FOR EMAIL ---
+        # --- DATA INTEGRITY CHECKS ---
         if not email or not email.lower().endswith("gdst.net"):
             flash("Invalid email address. Please use a valid GDST email.", "error")
             conn.close()
             return redirect(url_for("loan"))
         
-        if not device_id:
-            flash("Please select a device before attempting to loan.", "error")
+        if not device_ids_str:
+            flash("Please select at least one device before attempting to loan.", "error")
             conn.close()
             return redirect(url_for("loan"))
+
+        device_ids = [d_id.strip() for d_id in device_ids_str.split(',') if d_id.strip()]
+
         try:
+            # 1. Handle Student Record (Only do this once)
             c.execute("SELECT id FROM students WHERE email = ?", (email,))
             student_row = c.fetchone()
             if student_row:
@@ -124,24 +132,45 @@ def loan():
             else:
                 c.execute("INSERT INTO students (name, surname, email) VALUES (?, ?, ?)", (name, surname, email))
                 student_id = c.lastrowid
+
+            loaned_successfully = []
             
-            c.execute("SELECT available FROM devices WHERE id = ?", (device_id,))
-            available_status = c.fetchone()
-            if available_status is None or available_status[0] == 0:
-                flash("Error: Device is unavailable or does not exist.", "error")
-                conn.rollback()
-            else:
-                loan_time = datetime.now().isoformat()
-                c.execute("INSERT INTO loans (student_id, device_id, loan_time) VALUES (?, ?, ?)", (student_id, device_id, loan_time))
-                c.execute("UPDATE devices SET available = 0 WHERE id = ?", (device_id,))
+            # 2. Loop through each selected device
+            for d_id in device_ids:
+                # Check if this specific device is still available
+                c.execute("SELECT available, rubric_id, suffix_id FROM devices WHERE id = ?", (d_id,))
+                device_info = c.fetchone()
+
+                if device_info and device_info[0] == 1:
+                    loan_time = datetime.now().isoformat()
+                    # Create Loan record
+                    c.execute("INSERT INTO loans (student_id, device_id, loan_time) VALUES (?, ?, ?)", 
+                              (student_id, d_id, loan_time))
+                    # Mark device as loaned out
+                    c.execute("UPDATE devices SET available = 0 WHERE id = ?", (d_id,))
+                    
+                    # Track for the final success message
+                    full_id = f"{device_info[1]}{device_info[2]}"
+                    loaned_successfully.append(full_id)
+                else:
+                    flash(f"Warning: Device {d_id} was already taken or doesn't exist. Skipping.", "error")
+
+            # 3. Finalize
+            if loaned_successfully:
                 conn.commit()
-                flash(f"Device ID {device_id} loaned successfully to {name}!", "success")
+                devices_list = ", ".join(loaned_successfully)
+                flash(f"Successfully loaned: {devices_list} to {name}!", "success")
+            else:
+                conn.rollback()
+                flash("No devices were loaned. Please try again.", "error")
+
         except sqlite3.Error as e:
             flash(f"Database Error: {e}", "error")
             conn.rollback()
         finally:
             conn.close()
         return redirect(url_for("loan"))
+
     else:
         c.execute("SELECT id, rubric_id, suffix_id, category FROM devices WHERE available = 1")
         devices = c.fetchall()
@@ -149,7 +178,7 @@ def loan():
         categories = [row[0] for row in c.fetchall()]
         conn.close()
         return render_template("loan.html", devices=devices, categories=categories)
-
+    
 @app.route("/return", methods=["GET", "POST"])
 def return_device():
     conn = get_db_connection()
