@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Details: {{ device[1] }}-{{ device[2] }}</title>
+    <script src="https://cdn.tailwindcss.com/3.4.1"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="bg-gray-50 p-6 min-h-screen font-sans">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-2xl">
+        <div class="flex justify-between items-center mb-6 border-b pb-4">
+            <h1 class="text-3xl font-bold text-gray-900">Details: {{ device[1] }}-{{ device[2] }}</h1>
+            <a href="{{ url_for('admin') }}" class="btn blue">Back to Admin Panel</a>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="mb-6 p-4 rounded-lg {% if category == 'success' %} bg-green-100 text-green-700 {% else %} bg-red-100 text-red-700 {% endif %}">
+                  {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+            <div class="bg-gray-100 p-6 rounded-lg">
+                <h2 class="text-lg font-bold mb-4 uppercase text-gray-600">Hardware Info</h2>
+                <p class="mb-2"><strong>Category:</strong> {{ device[3] }}</p>
+                <p class="mb-2"><strong>Database ID:</strong> {{ device[0] }}</p>
+                <p><strong>Current Status:</strong> 
+                    {% if device[4] == 1 %}
+                    <span class="text-green-600 font-bold">Available</span>
+                    {% else %}
+                    <span class="text-red-600 font-bold">On Loan</span>
+                    {% endif %}
+                </p>
+            </div>
+
+            <div class="bg-blue-50 p-6 rounded-lg">
+                <h2 class="text-lg font-bold mb-4 uppercase text-blue-700">Admin Notes</h2>
+                <form method="post">
+                    <textarea name="notes" rows="4" class="w-full p-2 rounded border border-blue-200 focus:ring-2 focus:ring-blue-400 outline-none" 
+                              placeholder="Add notes about maintenance, long-term loan info, or issues...">{{ device[5] or '' }}</textarea>
+                    <button type="submit" class="btn blue w-full mt-3">Save Notes</button>
+                </form>
+            </div>
+        </div>
+
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">Loan History</h2>
+        <div class="overflow-x-auto border rounded-lg">
+            <table class="w-full text-left">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="p-3">Student</th>
+                        <th class="p-3">Email</th>
+                        <th class="p-3">Loaned At</th>
+                        <th class="p-3">Returned At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in history %}
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="p-3">{{ log.student }}</td>
+                        <td class="p-3 text-sm">{{ log.email }}</td>
+                        <td class="p-3 text-sm">{{ log.loan_at }}</td>
+                        <td class="p-3 text-sm font-medium {% if log.returned_at == 'STILL ON LOAN' %} text-orange-600 {% endif %}">
+                            {{ log.returned_at }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="p-8 text-center text-gray-500 italic">No loan history for this device yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

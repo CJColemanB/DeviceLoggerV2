@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <script src="{{ url_for('static', filename='admin.js') }}" defer></script>
     <style>
-        /* Styles for the new sorting functionality */
         th.sortable {
             cursor: pointer;
             user-select: none;
@@ -24,6 +23,8 @@
         }
         table { width: 100%; border-collapse: collapse; }
         th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        .device-link { color: #2563eb; font-weight: bold; text-decoration: underline; }
+        .device-link:hover { color: #1e40af; }
     </style>
 </head>
 <body class="bg-gray-50 p-6 min-h-screen font-sans">
@@ -131,7 +132,7 @@
                     <tbody>
                         {% for d_loan in devices_on_loan %}
                         <tr class="bg-red-50 hover:bg-red-100">
-                            <td class="font-bold">{{ d_loan[0] }}</td>
+                            <td><a href="{{ url_for('device_detail', device_id=d_loan[5]) }}" class="device-link">{{ d_loan[0] }}</a></td>
                             <td>{{ d_loan[1] }}</td>
                             <td>{{ d_loan[2] }} {{ d_loan[3] }}</td>
                             <td>{{ d_loan[4] }}</td>
@@ -143,7 +144,7 @@
                                 <a href="mailto:{{ d_loan[4] }}?subject=Device Loan Reminder: {{ d_loan[0] }}&body=Hi {{ d_loan[2] }},%0D%0A%0D%0AThis is a friendly reminder..."
                                    class="btn blue text-sm"
                                    style="display: inline-block; text-decoration: none; vertical-align: top;">
-                                   Remind
+                                    Remind
                                 </a>
                             </td>
                         </tr>
@@ -159,8 +160,7 @@
                     <thead>
                         <tr>
                             <th class="sortable" onclick="sortTable('inventory-table', 0, 'number')">DB ID <span class="sort-icon">↕</span></th>
-                            <th class="sortable" onclick="sortTable('inventory-table', 1)">Rubric ID <span class="sort-icon">↕</span></th>
-                            <th class="sortable" onclick="sortTable('inventory-table', 2)">Suffix ID <span class="sort-icon">↕</span></th>
+                            <th class="sortable" onclick="sortTable('inventory-table', 1)">Full ID <span class="sort-icon">↕</span></th>
                             <th class="sortable" onclick="sortTable('inventory-table', 3)">Category <span class="sort-icon">↕</span></th>
                             <th class="sortable" onclick="sortTable('inventory-table', 4)">Status <span class="sort-icon">↕</span></th>
                             <th>Action</th>
@@ -170,8 +170,14 @@
                         {% for d in devices %}
                         <tr>
                             <td>{{ d[0] }}</td>
-                            <td>{{ d[1] }}</td>
-                            <td>{{ d[2] }}</td>
+                            <td>
+                                <a href="{{ url_for('device_detail', device_id=d[0]) }}" class="device-link">
+                                    {{ d[1] }}-{{ d[2] }}
+                                </a>
+                                {% if d[5] %}
+                                    <span title="This device has admin notes" class="ml-1 cursor-help">📝</span>
+                                {% endif %}
+                            </td>
                             <td>{{ d[3] }}</td>
                             <td>
                                 {% if d[4] == 1 %}

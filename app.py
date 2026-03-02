@@ -17,7 +17,6 @@ ADMIN_USERNAME = ""
 ADMIN_PASSWORD = ""
 
 def generate_credentials():
-    """Generates unique username and password for this app instance."""
     global ADMIN_USERNAME, ADMIN_PASSWORD
     random_suffix = ''.join(secrets.choice(string.digits) for _ in range(4))
     ADMIN_USERNAME = f"admin_{random_suffix}"
@@ -35,9 +34,10 @@ def generate_credentials():
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
+    # Added 'notes' column to devices table
     c.execute('''CREATE TABLE IF NOT EXISTS devices (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, rubric_id TEXT, suffix_id TEXT,
-                    category TEXT, available INTEGER,
+                    category TEXT, available INTEGER, notes TEXT,
                     UNIQUE(rubric_id, suffix_id))''')
     c.execute('''CREATE TABLE IF NOT EXISTS students (
                     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, surname TEXT, email TEXT UNIQUE)''')
@@ -46,13 +46,19 @@ def init_db():
                     loan_time TEXT, return_time TEXT,
                     FOREIGN KEY(student_id) REFERENCES students(id),
                     FOREIGN KEY(device_id) REFERENCES devices(id))''')
+    
+    # Migration check: Add notes column if it doesn't exist in an old DB file
+    try:
+        c.execute("ALTER TABLE devices ADD COLUMN notes TEXT")
+    except sqlite3.OperationalError:
+        pass # Column already exists
+        
     conn.commit()
     conn.close()
 
 # --- Utility Functions ---
 
 def login_required(f):
-    """Decorator to check if user is logged in."""
     def decorated_function(*args, **kwargs):
         if 'logged_in' not in session or not session['logged_in']:
             flash("You must log in to access the admin panel.", "error")
@@ -106,10 +112,8 @@ def loan():
         name = request.form.get("name")
         surname = request.form.get("surname")
         email = request.form.get("email")
-        # Get the comma-separated string from the hidden input
         device_ids_str = request.form.get("selected_device_ids") 
 
-        # --- DATA INTEGRITY CHECKS ---
         if not email or not email.lower().endswith("gdst.net"):
             flash("Invalid email address. Please use a valid GDST email.", "error")
             conn.close()
@@ -123,7 +127,6 @@ def loan():
         device_ids = [d_id.strip() for d_id in device_ids_str.split(',') if d_id.strip()]
 
         try:
-            # 1. Handle Student Record (Only do this once)
             c.execute("SELECT id FROM students WHERE email = ?", (email,))
             student_row = c.fetchone()
             if student_row:
@@ -135,27 +138,20 @@ def loan():
 
             loaned_successfully = []
             
-            # 2. Loop through each selected device
             for d_id in device_ids:
-                # Check if this specific device is still available
                 c.execute("SELECT available, rubric_id, suffix_id FROM devices WHERE id = ?", (d_id,))
                 device_info = c.fetchone()
 
                 if device_info and device_info[0] == 1:
                     loan_time = datetime.now().isoformat()
-                    # Create Loan record
                     c.execute("INSERT INTO loans (student_id, device_id, loan_time) VALUES (?, ?, ?)", 
                               (student_id, d_id, loan_time))
-                    # Mark device as loaned out
                     c.execute("UPDATE devices SET available = 0 WHERE id = ?", (d_id,))
-                    
-                    # Track for the final success message
                     full_id = f"{device_info[1]}{device_info[2]}"
                     loaned_successfully.append(full_id)
                 else:
                     flash(f"Warning: Device {d_id} was already taken or doesn't exist. Skipping.", "error")
 
-            # 3. Finalize
             if loaned_successfully:
                 conn.commit()
                 devices_list = ", ".join(loaned_successfully)
@@ -185,7 +181,7 @@ def return_device():
     c = conn.cursor()
     if request.method == "POST":
         loan_id = request.form.get("loan_id")
-        category_filter = request.form.get('category_filter') # Read filter from hidden form field
+        category_filter = request.form.get('category_filter')
         try:
             c.execute("SELECT device_id FROM loans WHERE id = ?", (loan_id,))
             loan_info = c.fetchone()
@@ -333,14 +329,64 @@ def admin():
         c.execute(f"SELECT s.name, s.surname, d.rubric_id, d.suffix_id, l.loan_time, l.return_time FROM loans l JOIN students s ON l.student_id = s.id JOIN devices d ON l.device_id = d.id {history_order_by}")
         loan_records = c.fetchall()
         
-        c.execute(f"SELECT d.rubric_id, d.suffix_id, d.category, s.name, s.surname, s.email FROM devices d JOIN loans l ON d.id = l.device_id JOIN students s ON l.student_id = s.id WHERE d.available = 0 AND l.return_time IS NULL {on_loan_order_by}")
+        c.execute(f"SELECT d.rubric_id, d.suffix_id, d.category, s.name, s.surname, s.email, d.id FROM devices d JOIN loans l ON d.id = l.device_id JOIN students s ON l.student_id = s.id WHERE d.available = 0 AND l.return_time IS NULL {on_loan_order_by}")
         devices_on_loan_list = c.fetchall()
         
         formatted_loans = [{'student_name': f"{r[0]} {r[1]}", 'device_id': f"{r[2]}-{r[3]}", 'loan_date': format_dt(r[4])[0], 'loan_time': format_dt(r[4])[1], 'return_date': format_dt(r[5])[0], 'return_time': format_dt(r[5])[1], 'status': "Returned" if r[5] else "On Loan"} for r in loan_records]
-        devices_on_loan_formatted = [[f"{r[0]}-{r[1]}", r[2], r[3], r[4], r[5]] for r in devices_on_loan_list]
+        
+        # Modified to include Database ID for linking
+        devices_on_loan_formatted = [[f"{r[0]}-{r[1]}", r[2], r[3], r[4], r[5], r[6]] for r in devices_on_loan_list]
         
         conn.close()
         return render_template("admin.html", devices=devices_raw, loans=formatted_loans, devices_on_loan=devices_on_loan_formatted, sort_by=sort_by, sort_dir=sort_dir)
+
+@app.route("/admin/device/<int:device_id>", methods=["GET", "POST"])
+@login_required
+def device_detail(device_id):
+    conn = get_db_connection()
+    c = conn.cursor()
+
+    if request.method == "POST":
+        new_note = request.form.get("notes")
+        try:
+            c.execute("UPDATE devices SET notes = ? WHERE id = ?", (new_note, device_id))
+            conn.commit()
+            flash("Device notes updated successfully.", "success")
+        except sqlite3.Error as e:
+            flash(f"Error updating notes: {e}", "error")
+
+    # Get main device info
+    c.execute("SELECT * FROM devices WHERE id = ?", (device_id,))
+    device = c.fetchone()
+
+    if not device:
+        conn.close()
+        flash("Device not found.", "error")
+        return redirect(url_for('admin'))
+
+    # Get full loan history for this device
+    c.execute('''
+        SELECT s.name, s.surname, s.email, l.loan_time, l.return_time 
+        FROM loans l 
+        JOIN students s ON l.student_id = s.id 
+        WHERE l.device_id = ? 
+        ORDER BY l.loan_time DESC
+    ''', (device_id,))
+    history_raw = c.fetchall()
+
+    history = []
+    for row in history_raw:
+        loan_d, loan_t = format_dt(row[3])
+        ret_d, ret_t = format_dt(row[4])
+        history.append({
+            'student': f"{row[0]} {row[1]}",
+            'email': row[2],
+            'loan_at': f"{loan_d} {loan_t}",
+            'returned_at': f"{ret_d} {ret_t}" if row[4] else "STILL ON LOAN"
+        })
+
+    conn.close()
+    return render_template("device_detail.html", device=device, history=history)
 
 @app.route("/export_admin_data")
 @login_required
@@ -349,7 +395,7 @@ def export_admin_data():
     output = io.BytesIO()
     try:
         df_on_loan = pd.read_sql_query("SELECT d.rubric_id || '-' || d.suffix_id AS 'Device ID', d.category AS 'Category', s.name || ' ' || s.surname AS 'Student Name', s.email AS 'Student Email' FROM devices d JOIN loans l ON d.id = l.device_id JOIN students s ON l.student_id = s.id WHERE d.available = 0 AND l.return_time IS NULL ORDER BY d.category, s.surname", conn)
-        df_inventory = pd.read_sql_query("SELECT id AS 'Database ID', rubric_id AS 'Rubric ID', suffix_id AS 'Suffix ID', category AS 'Category', CASE WHEN available = 1 THEN 'Loanable' ELSE 'Loaned Out' END AS 'Status' FROM devices ORDER BY id DESC", conn)
+        df_inventory = pd.read_sql_query("SELECT id AS 'Database ID', rubric_id AS 'Rubric ID', suffix_id AS 'Suffix ID', category AS 'Category', CASE WHEN available = 1 THEN 'Loanable' ELSE 'Loaned Out' END AS 'Status', notes AS 'Notes' FROM devices ORDER BY id DESC", conn)
         df_history = pd.read_sql_query("SELECT s.name || ' ' || s.surname AS 'Student Name', d.rubric_id || '-' || d.suffix_id AS 'Device ID', d.category, l.loan_time, l.return_time FROM loans l JOIN students s ON l.student_id = s.id JOIN devices d ON l.device_id = d.id ORDER BY l.loan_time DESC", conn)
 
         df_history[['Loan Date', 'Loan Time']] = df_history['loan_time'].apply(lambda x: pd.Series(format_dt(x)))
@@ -367,7 +413,7 @@ def export_admin_data():
         return send_file(output, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
     except Exception as e:
-        flash(f"Error exporting Excel file: {e}. You may need to install 'openpyxl'.", "error")
+        flash(f"Error exporting Excel file: {e}", "error")
         return redirect(url_for("admin"))
     finally:
         conn.close()
